@@ -75,7 +75,7 @@ func (a Action) String() string {
 	if verboseFlag {
 		ty := fmt.Sprintf("\t%-12s\t%s\n", "Type:", a.Type)
 
-		title := a.getTitle()
+		title := a.GetTitle()
 		if title != "" {
 			title = fmt.Sprintf("\t%-12s\t%s\n", "Title:", title)
 		} else {
@@ -107,11 +107,11 @@ func (a Action) String() string {
 		}
 		return fmt.Sprintf("\n::%v%s%v \n%s %s %s %s %s %s %s", COLOR_GREEN, a.Name, COLOR_NONE, title, ty, ob, req, pkgs, le, c)
 	} else {
-		return fmt.Sprintf("\n::%v%s%v \t%s\n", COLOR_GREEN, a.Name, COLOR_NONE, a.getTitle())
+		return fmt.Sprintf("\n::%v%s%v \t%s\n", COLOR_GREEN, a.Name, COLOR_NONE, a.GetTitle())
 	}
 }
 
-func (a Action) getTitle() string {
+func (a Action) GetTitle() string {
 	ret := a.Titles.En
 
 	langs := make(map[string]string)
@@ -298,7 +298,7 @@ func displayShort(filename string, conf *Service) {
 	fmt.Printf("%v%s%v \t%v%s%v \t%s%s%s", COLOR_GREEN, filename[:len(filename)-5], COLOR_NONE, COLOR_GRAY, conf.Caption, COLOR_NONE, COLOR_GRAY, conf.Version, COLOR_NONE)
 
 	for _, action := range conf.Actions {
-		fmt.Printf("\n\t%-35s %s%s%s ", action.Name, COLOR_GRAY, action.getTitle(), COLOR_NONE)
+		fmt.Printf("\n\t%-35s %s%s%s ", action.Name, COLOR_GRAY, action.GetTitle(), COLOR_NONE)
 		//fmt.Println(action)
 	}
 	fmt.Println("")
@@ -422,6 +422,7 @@ func main() {
 			helpCmd := flag.Bool("h", false, "Usage")
 			listCmd := flag.Bool("l", false, "List logs choice")
 			sendCmd := flag.Bool("s", false, "Send log to cloud")
+			findCmd := flag.Bool("f", false, "find  a command")
 			flag.BoolVar(&verboseFlag, "v", false, "verbose")
 
 			flag.Parse()
@@ -445,6 +446,30 @@ func main() {
 				for _, filename := range matches {
 					conf := loadConf(filename)
 					displayShort(path.Base(filename), conf)
+				}
+				os.Exit(0)
+			}
+			if *findCmd {
+				if len(flag.Args()) < 1 {
+					os.Exit(127)
+				}
+				search := strings.ToLower(flag.Args()[0])
+				matches, err := filepath.Glob(configdir + "/*." + EXTENSION)
+				if err != nil {
+					fmt.Println(err)
+					os.Exit(1)
+				}
+				fmt.Printf("Search: %s", search)
+				verboseFlag = true
+				for _, filename := range matches {
+					conf := loadConf(filename)
+					for _, action := range conf.Actions {
+						strf := strings.ToLower(action.Name + " " + action.GetTitle() + " " + action.Command)
+						//fmt.Printf("%s", str)
+						if strings.Contains(strf, search) && action.Object == "" {
+							fmt.Println(action)
+						}
+					}
 				}
 				os.Exit(0)
 			}
