@@ -1,0 +1,23 @@
+caption: "test actions included"
+version: "0.0.1"
+actions:
+  - name: "Custum Journal errors"
+    object: "Journald"
+    type: "include"
+    level: 3  # default = 3
+    count: 78 # default = 32
+    title:
+      en: "Systemd log Errors, level:3 to 0"
+      fr: "Erreurs log systemd, niveau: 3 à 0"
+    require:
+      - "systemd" # run if package installed
+      - "/usr/bin/journalctl" # run if file exists
+      #- "bash: grep 'toto' /etc/pacman.conf"  # run if command return 0
+
+  - name: "List Packages"
+    object: "PkgVer"
+    type: "include"
+    pkgs: "Pacman trucmuche bash"
+    require:
+      - "Pacman"
+      - "/usr/bin/pacman"

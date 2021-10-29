@@ -1,0 +1,89 @@
+caption: "Wifi logs"
+version: "0.0.1"
+actions: 
+  - name: "lsb-release"
+    command: "cat /etc/lsb-release; echo Desktop: $DESKTOP_SESSION"
+    type: "shell"
+    title:
+      en: "System info"
+      fr: "System Informations"
+    require:
+      - "/etc/lsb-release"
+
+
+  - name: "Zone Wifi"
+    command: "iw reg get"
+    require:
+      - "iw"
+
+  - name: "Usb Infos"
+    command: "lsusb"
+    title:
+      fr: "Info sur Periphériques Usb"
+
+  - name: "Pci Infos"
+    command: "lspci"
+    title:
+      fr: "Info sur Periphériques Pci"
+
+  - name: "Net Info Inxi"
+    command: "inxi -Nx"
+    require:
+      - "inxi"
+
+  - name: "net Info"
+    command: "iwconfig"
+    title:
+      en: "network Info"
+      fr: "Info Réseau"
+
+
+  - name: "Standard Net Info"
+    command: "ifconfig"
+    title:
+      fr: "Info Réseau Standard:"
+
+  - name: "Pci Card"
+    command: "lspci | grep -i net"
+    title:
+      fr: "Cartes Pci pour Réseau:"
+
+  - name: "Pci Card Etend Infos"
+    command: "lspci -k -nn | grep -A 3 -i net"
+    title:
+      fr: "Info Réseau Etendue Carte Pci"
+
+
+  - name: "Wifi force and Disponibility"
+    command: "nmcli dev wifi"
+    title:
+      fr: "Info sur Wifi - Force et Disponibilité"
+
+  - name: "SSID Connection"
+    command: "nmcli connection show"
+    title:
+      fr: "Info Connection SSID"
+
+  - name: "NetworkManager logs"
+    command: "journalctl -u NetworkManager -rq -n12 --no-pager"
+    title:
+      fr: "Affichage des journaux pour NetworkManager"
+
+  - name: "test"
+    command: "env"
+    title:
+      en: environment test
+
+  - name: "router:"
+    command: "ip route show default|awk '{print $3 }';smbclient -NL $(ip route show default|awk '{print $3 }')"
+    require:
+      - "/usr/bin/smbclient"
+
+  - name: "List Packages"
+    object: "PkgVer"
+    type: "include"
+    pkgs: "Pacman trucmuche bash"
+    require:
+      - "pacman"
+      - "/usr/bin/pacman"
+      

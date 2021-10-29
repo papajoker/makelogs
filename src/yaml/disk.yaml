@@ -1,0 +1,39 @@
+caption: "Disk logs"
+sudo: 1
+version: "0.0.1"
+actions: 
+  - name: "lsb-release"
+    command: "cat /etc/lsb-release; echo Desktop: $DESKTOP_SESSION"
+    type: "shell"
+    title:
+      en: "System info"
+      fr: "System Informations"
+    require:
+      - "/etc/lsb-release"
+
+  - name: "partition"
+    command: "lsblk -o 'NAME,UUID,LABEL,SIZE,TYPE,ROTA,FSTYPE,PARTTYPE,MOUNTPOINT'|grep -v ' 0B disk'"
+
+  - name: "disk"
+    command: "sudo fdisk -l"
+    require:
+      - "/usr/bin/fdisk"
+  
+  - name: "space"
+    command: "df -Th -x tmpfs -x devtmpfs"
+  
+  - name: "smartctl sda"
+    command: 'sudo smartctl -A /dev/sda'
+    require:
+      - "/usr/bin/smartctl"
+
+  - name: "smartctl sdb"
+    command: 'sudo smartctl -A /dev/sdb'
+    require:
+      - "/dev/sdb"
+      - "/usr/bin/smartctl"
+
+  - name: "inxi"
+    command: 'inxi -Dxxx -p -c0'
+    require:
+      - "/usr/bin/inxi"

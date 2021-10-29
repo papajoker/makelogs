@@ -1,0 +1,52 @@
+caption: "Default logs"
+version: "0.0.1"
+actions:
+
+  - name: "lsb-release"
+    command: "cat /etc/lsb-release; echo Desktop: $DESKTOP_SESSION"
+    type: "shell"
+    title:
+      en: "System info"
+      fr: "System Informations"
+    require:
+      - "/etc/lsb-release"
+
+  - name: "memory (base 10)"
+    command: "free --si -wh"
+  
+  - name: "display manager"
+    command: "systemctl show display-manager|awk -v FS='[=.]' '/^Id/ {print $2}'"
+  
+  - name: "inxi"
+    command: 'inxi --admin --verbosity=7 --filter --no-host --width -c0'
+  #  command: 'sudo inxi --admin --verbosity=7 --filter --no-host --width -c0'
+
+  - name: "Journal errors"
+    command: "SYSTEMD_COLORS=0 journalctl -b0 -p3 -qr -n32 --no-pager --no-hostname"
+    type: "shell"
+    title:
+      en: "Systemd log Errors level:3 to 0"
+      fr: "Erreurs log systemd niveau: 3 à 0"
+
+  - name: "Journal warnings"
+    command: "SYSTEMD_COLORS=0 journalctl -b0 -p4 -qr -n32 --no-pager --no-hostname"
+    type: "shell"
+    title:
+      en: "Systemd log Warnings and Errors, level:4 to 0"
+      fr: "Warnings et Erreurs log systemd, niveau: 4 à 0"
+
+  - name: "Custum Journal errors"
+    object: "Journald"
+    type: "include"
+    title:
+      en: "Systemd log Errors, level:3 to 0"
+      fr: "Erreurs log systemd, niveau: 3 à 0"
+    require:
+      - "systemd" # run if package installed
+      - "/usr/bin/journalctl" # run if file exists
+
+  - name: "List Packages"
+    object: "PkgVer"
+    type: "include"
+    pkgs: "Pacman trucmuche bash"
+
