@@ -465,6 +465,10 @@ func main() {
 			if !strings.HasSuffix(filename, "."+EXTENSION) {
 				filename += "." + EXTENSION
 			}
+			if strings.HasPrefix(filename, ".") {
+				pwd, _ := os.Getwd()
+				filename = pwd + "/" + filename
+			}
 			if !strings.HasPrefix(filename, "/") {
 				filename = configdir + "/" + filename
 			}
