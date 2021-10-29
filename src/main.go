@@ -263,7 +263,7 @@ func (j Journald) exec() string {
 			// no repeat if same entry
 			if entry != oldentry {
 				oldentry = entry
-				ret = fmt.Sprintf("%s%s %s\n", tm.Format("2006-01-02 15:04:05"), ret, entry)
+				ret = fmt.Sprintf("%s%s %s\n", ret, tm.Format("2006-01-02 15:04:05"), entry)
 			}
 		}
 		return ret
