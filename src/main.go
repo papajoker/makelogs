@@ -417,7 +417,7 @@ func main() {
 	}
 
 	args := os.Args[1:]
-	filename := "default" + EXTENSION
+	filename := configdir + "default." + EXTENSION
 	if len(args) > 0 {
 		if args[0][0] == '-' {
 			// command or option
