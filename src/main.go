@@ -21,8 +21,6 @@ import (
 
 	"github.com/acarl005/stripansi"
 	"gopkg.in/yaml.v3"
-
-	_ "embed"
 )
 
 //go:embed yaml/*.yaml
@@ -357,7 +355,7 @@ func sendToClound(logfile string) {
 			cmd := fmt.Sprintf("cat '%s' | curl -s -F %s", logfile, url)
 			out, err := exec.Command("bash", "-c", cmd).CombinedOutput()
 			if err != nil {
-				return fmt.Errorf("Error %s : %s - %s", name, string(out), err)
+				return fmt.Errorf("error %s : %s - %s", name, string(out), err)
 			} else {
 				fmt.Printf("\n:: cloud url is : %v%s%v\f", COLOR_GREEN, string(out), COLOR_NONE)
 				return nil
