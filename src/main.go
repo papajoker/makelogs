@@ -340,7 +340,12 @@ func main() {
 				configdir.ForEachAll(func(conf *Service, action *Action) {
 					strf := strings.ToLower(action.Name + " " + action.GetTitle() + " " + action.Command)
 					if strings.Contains(strf, search) && action.Object == "" {
-						fmt.Print(action)
+						t := action.GetTitle()
+						if t != "" {
+							t = "\n   " + t
+						}
+						fmt.Printf("\n::%v%s%v%s\n   %s\n", COLOR_GREEN, action.Name, COLOR_NONE, t, action.Command)
+						//fmt.Print(action)
 					}
 				})
 				fmt.Println("")
