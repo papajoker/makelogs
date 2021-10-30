@@ -1,0 +1,10 @@
+
+{{"\033[0;36m"}}{{ printf "%-35s"  .Command }}{{"\033[0m"}}    {{"\033[38;5;243m"}}{{ .Caption }}    {{ .Version }}{{"\033[0m"}}
+{{- $Actions := .Actions -}}
+{{ range $index, $action := .Actions }}
+   {{ printf "%-32s" .Name }}    {{"\033[38;5;243m"}}{{ .GetTitle  }}{{"\033[0m" -}}
+{{ end }}
+{{/* 
+    https://pkg.go.dev/text/template
+    https://lakefs.io/building-rich-cli-applications-with-gos-built-in-templating/
+*/}}

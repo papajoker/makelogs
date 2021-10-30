@@ -10,6 +10,8 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"runtime"
+	"text/template"
 
 	"gopkg.in/yaml.v3"
 )
@@ -84,4 +86,20 @@ func loadConf(filename string) *Service {
 	}
 	conf.Command = path.Base(filename[:len(filename)-5])
 	return conf
+}
+
+func templatingConf(conf *Service, tmplname string) {
+	_, tfilename, _, ok := runtime.Caller(0)
+	if !ok {
+		panic("No caller information")
+	}
+	tmpl, err := template.New(tmplname + ".tmpl").ParseFiles(path.Dir(tfilename) + "/template/" + tmplname + ".tmpl")
+	if err != nil {
+		panic(err)
+	}
+
+	err = tmpl.Execute(os.Stdout, conf)
+	if err != nil {
+		panic(err)
+	}
 }

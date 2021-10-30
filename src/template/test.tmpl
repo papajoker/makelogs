@@ -1,0 +1,26 @@
+{{ $cfg := . }}
+{{ $Actions := .Actions }}
+
+---------------------
+Title: {{"\033[0;36m"}}{{ $cfg.Caption }}{{"\033[0m"}}
+Version: {{ $cfg.Version }}
+{{ if .Command }}{{.Command}}{{ end }}
+---------------------
+
+{{ range $index, $action := .Actions }}
+:: {{ .Name }}    {{ .GetTitle  }}
+{{if .Type}}{{"\n"}}    type: {{.Type}}{{ end -}}
+{{if .Object}}{{"\n"}}    object: {{.Object}}{{ end -}}
+{{if .Command}}{{"\n"}}    command: {{.Command}}{{ end -}}
+{{if .Level}}{{"\n"}}    level: {{.Level}}{{ end -}}
+{{if .Count}}{{"\n"}}    count: {{.Count}}{{ end -}}
+{{ if .Requires -}}
+{{"\n"}}    require:
+    {{- range $reqIndex, $title := $action.Requires}}
+        - {{ $reqIndex }} {{ . }}{{end}}
+    {{ end }} 
+{{ end -}}
+{{/* 
+    https://pkg.go.dev/text/template
+    https://lakefs.io/building-rich-cli-applications-with-gos-built-in-templating/
+*/}}

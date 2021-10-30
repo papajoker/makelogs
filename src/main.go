@@ -319,11 +319,16 @@ func main() {
 				fmt.Println("\t./makelogs disk")
 				fmt.Println("\nREAD/Edit result file:", LOGFILE)
 				fmt.Println("\nSend this file to cloud : \"./makelogs -s\"")
+
+				/*conf := loadConf(filename)
+				templatingConf(conf, "test")
+				*/
+
 				os.Exit(0)
 			}
 			if *listCmd {
 				configdir.ForEach(func(conf *Service) {
-					displayShort(conf)
+					templatingConf(conf, "list")
 				})
 				os.Exit(0)
 			}
@@ -335,14 +340,15 @@ func main() {
 				if len(search) < 3 {
 					os.Exit(127)
 				}
-				fmt.Printf("Search: \"%v%s%v\"\n", COLOR_BLUE, search, COLOR_NONE)
-				verboseFlag = true
+
+				result := Service{Caption: search}
 				configdir.ForEachAll(func(conf *Service, action *Action) {
 					strf := strings.ToLower(action.Name + " " + action.GetTitle() + " " + action.Command)
 					if strings.Contains(strf, search) && action.Object == "" {
-						fmt.Print(action)
+						result.Actions = append(result.Actions, *action)
 					}
 				})
+				templatingConf(&result, "search")
 				fmt.Println("")
 				os.Exit(0)
 			}

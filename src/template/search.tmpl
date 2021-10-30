@@ -1,0 +1,10 @@
+
+Search:   {{"\033[0;34m"}}{{ .Caption }}{{"\033[0m"}}
+{{ range $action := .Actions }}
+:: {{"\033[0;36m"}}{{ printf "%-35s" .Name  }}{{"\033[0m"}} {{ .GetTitle }}
+{{if .Command}}   {{.Command}}{{ end }}
+{{ end -}}
+{{/* 
+    https://pkg.go.dev/text/template
+    https://lakefs.io/building-rich-cli-applications-with-gos-built-in-templating/
+*/}}
