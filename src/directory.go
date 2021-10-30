@@ -36,7 +36,7 @@ func (d *Directory) Init() {
 	}
 }
 
-func (d Directory) ForEach(function func(conf *Service)) {
+func (d Directory) ForEach(function func(conf *Service), exclude string) {
 	matches, err := filepath.Glob(d.Dir + "/*." + EXTENSION)
 	if err != nil {
 		fmt.Println(err)
@@ -44,7 +44,9 @@ func (d Directory) ForEach(function func(conf *Service)) {
 	}
 	for _, filename := range matches {
 		conf := loadConf(filename)
-		function(conf)
+		if exclude != conf.Command {
+			function(conf)
+		}
 	}
 }
 
@@ -53,7 +55,7 @@ func (d Directory) ForEachAll(function func(conf *Service, action *Action)) {
 		conf.ForEach(func(action *Action) {
 			function(conf, action)
 		})
-	})
+	}, "searchInAll")
 }
 
 func extractConf(configdir string, dir embed.FS) {

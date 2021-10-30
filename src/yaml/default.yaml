@@ -49,4 +49,3 @@ actions:
     object: "PkgVer"
     type: "include"
     pkgs: "Pacman trucmuche bash"
-

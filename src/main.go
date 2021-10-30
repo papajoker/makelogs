@@ -23,7 +23,7 @@ const (
 	COLOR_GREEN = "\033[0;36m"
 	COLOR_RED   = "\033[38;5;124m"
 	COLOR_GRAY  = "\033[38;5;243m"
-	_VERSION    = "0.0.4"
+	_VERSION    = "0.0.5"
 	LOGFILE     = "logs.md"
 	EXTENSION   = "yaml"
 )
@@ -290,12 +290,6 @@ func sendToClound(logfile string) {
 func main() {
 	configdir := Directory{}
 	configdir.Init()
-	/*configdir.ForEachAll(func(conf *Service, action *Action) {
-		fmt.Printf("%s -> ", conf.Caption)
-		fmt.Printf("%s \n ", action.Name)
-	})
-	//os.Exit(0)*/
-
 	fmt.Println("makelogs", _VERSION)
 
 	args := os.Args[1:]
@@ -324,7 +318,7 @@ func main() {
 			if *listCmd {
 				configdir.ForEach(func(conf *Service) {
 					displayShort(conf)
-				})
+				}, "search")
 				os.Exit(0)
 			}
 			if *findCmd {

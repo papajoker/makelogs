@@ -1,0 +1,13 @@
+caption: "Only for search a good command"
+version: "0.0.1"
+actions:
+
+  - name: "memory (base 10)"
+    command: "free --si -wh"
+    title:
+      en: "one command only for search function"
+  
+  - name: "display manager"
+    command: "systemctl show display-manager|awk -v FS='[=.]' '/^Id/ {print $2}'"
+    title:
+      en: "one command only for search function"
