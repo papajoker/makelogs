@@ -1,0 +1,87 @@
+package main
+
+import (
+	"embed"
+	"errors"
+	"fmt"
+	"io/fs"
+	"io/ioutil"
+	"log"
+	"os"
+	"path"
+	"path/filepath"
+
+	"gopkg.in/yaml.v3"
+)
+
+//go:embed yaml/*.yaml
+var fe embed.FS
+
+type Directory struct {
+	Dir string
+}
+
+func (d *Directory) Init() {
+	configdir, err := os.UserHomeDir()
+	if err != nil {
+		log.Fatal(err)
+	}
+	d.Dir = configdir + "/.local/share/makelogs/"
+
+	if _, err := os.Stat(d.Dir); errors.Is(err, fs.ErrNotExist) {
+		// extract resources only at first run ... ?
+		// TODO unsecure to have these scripts in home ... extract allways / use only embed files ? or use /var/
+		os.MkdirAll(d.Dir, os.ModePerm)
+		extractConf(d.Dir, fe)
+	}
+}
+
+func (d Directory) ForEach(function func(conf *Service)) {
+	matches, err := filepath.Glob(d.Dir + "/*." + EXTENSION)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	for _, filename := range matches {
+		conf := loadConf(filename)
+		function(conf)
+	}
+}
+
+func (d Directory) ForEachAll(function func(conf *Service, action *Action)) {
+	d.ForEach(func(conf *Service) {
+		conf.ForEach(func(action *Action) {
+			function(conf, action)
+		})
+	})
+}
+
+func extractConf(configdir string, dir embed.FS) {
+	myDirFiles, _ := dir.ReadDir(EXTENSION)
+	for _, de := range myDirFiles {
+		f, err := os.Create(configdir + de.Name())
+		if err != nil {
+			log.Fatal(err)
+		}
+		fdata, err := dir.ReadFile(EXTENSION + "/" + de.Name())
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Fprint(f, string(fdata))
+	}
+}
+
+func loadConf(filename string) *Service {
+	yfile, err := ioutil.ReadFile(filename)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	conf := &Service{}
+	err1 := yaml.Unmarshal(yfile, conf)
+	if err1 != nil {
+		log.Fatal(err1)
+	}
+	conf.Command = path.Base(filename[:len(filename)-5])
+	return conf
+}

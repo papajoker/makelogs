@@ -1,30 +1,20 @@
 package main
 
 import (
-	"embed"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"io/fs"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
-	"path"
-	"path/filepath"
 	"reflect"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/acarl005/stripansi"
-	"gopkg.in/yaml.v3"
 )
-
-//go:embed yaml/*.yaml
-var fe embed.FS
 
 const (
 	//https://misc.flogisoft.com/bash/tip_colors_and_formatting
@@ -66,8 +56,15 @@ type Action struct {
 type Service struct {
 	Caption  string
 	Version  string
+	Command  string
 	WantSudo int      `yaml:"sudo"`
 	Actions  []Action `yaml:"actions"`
+}
+
+func (s *Service) ForEach(function func(action *Action)) {
+	for _, action := range s.Actions {
+		function(&action)
+	}
 }
 
 func (a Action) String() string {
@@ -198,77 +195,6 @@ func (a *Action) exec() bool {
 	return false
 }
 
-// -------------- INCLUDE OBJECT --------------------- //
-
-type PkgVer struct {
-	pkgs string
-}
-
-func (p PkgVer) exec() string {
-	cmd := fmt.Sprintf("LANG=C pacman -Qi %s |awk -F':' '/^Name/ {{n=$2}} /^Ver/ {{print n\": \"$2}}'", p.pkgs)
-	if p.pkgs != "" {
-		out, err := exec.Command("bash", "-c", cmd).Output()
-		if err == nil {
-			return string(out)
-		}
-	}
-	return ""
-}
-
-// Display journald log but with error level
-
-type JournalType struct {
-	UID               string `json:"_UID"`
-	Cmdline           string `json:"_CMDLINE,omitempty"`
-	SyslogIdentifier  string `json:"SYSLOG_IDENTIFIER"`
-	Comm              string `json:"_COMM"`
-	RealtimeTimestamp string `json:"__REALTIME_TIMESTAMP"`
-	Priority          string `json:"PRIORITY"`
-	Message           string `json:"MESSAGE"`
-}
-
-type Journald struct {
-	level int
-	count int
-}
-
-func (j Journald) exec() string {
-	const f = "__REALTIME_TIMESTAMP,PRIORITY,_COMM,_UID,MESSAGE,_CMDLINE,SYSLOG_IDENTIFIER"
-	cmd := fmt.Sprintf("journalctl -b0 -p%d -qr -n%d --no-pager --output-fields=\"%s\" -o json", j.level, j.count, f)
-	ret := ""
-	out, err := exec.Command("bash", "-c", cmd).Output()
-	if err == nil {
-		var dat []JournalType
-		if err := json.Unmarshal([]byte("["+strings.ReplaceAll(string(out), "}\n{", "},\n{")+"]"), &dat); err != nil {
-			panic(err)
-		}
-		oldentry := ""
-		for _, j := range dat {
-
-			i, err := strconv.ParseInt(j.RealtimeTimestamp[0:10], 10, 64)
-			if err != nil {
-				i = 0
-			}
-			tm := time.Unix(i, 0)
-
-			/*
-				cmdline := j.Cmdline
-				if cmdline == "" {
-					cmdline = j.SyslogIdentifier
-				}
-			*/
-			entry := fmt.Sprintf("(%s) %s[%s]: %s", j.Priority, j.Comm, j.UID, j.Message)
-			// no repeat if same entry
-			if entry != oldentry {
-				oldentry = entry
-				ret = fmt.Sprintf("%s%s %s\n", ret, tm.Format("2006-01-02 15:04:05"), entry)
-			}
-		}
-		return ret
-	}
-	return ""
-}
-
 // -------------- MAIN --------------------- //
 
 func run(conf *Service) {
@@ -292,10 +218,10 @@ func run(conf *Service) {
 	wg.Wait()
 }
 
-func displayShort(filename string, conf *Service) {
+func displayShort(conf *Service) {
 	//fmt.Printf("%v", conf)
 	fmt.Println(" ")
-	fmt.Printf("%v%s%v \t%v%s%v \t%s%s%s", COLOR_GREEN, filename[:len(filename)-5], COLOR_NONE, COLOR_GRAY, conf.Caption, COLOR_NONE, COLOR_GRAY, conf.Version, COLOR_NONE)
+	fmt.Printf("%v%s%v \t%v%s%v \t%s%s%s", COLOR_GREEN, conf.Command, COLOR_NONE, COLOR_GRAY, conf.Caption, COLOR_NONE, COLOR_GRAY, conf.Version, COLOR_NONE)
 
 	for _, action := range conf.Actions {
 		fmt.Printf("\n\t%-35s %s%s%s ", action.Name, COLOR_GRAY, action.GetTitle(), COLOR_NONE)
@@ -320,20 +246,6 @@ func display(conf *Service) {
 			fmt.Fprintf(os.Stderr, "%sWarning%s: Nothing for %s\n", COLOR_RED, COLOR_NONE, action.Name)
 		}
 	}
-}
-
-func loadConf(filename string) *Service {
-	yfile, err := ioutil.ReadFile(filename)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	conf := &Service{}
-	err1 := yaml.Unmarshal(yfile, conf)
-	if err1 != nil {
-		log.Fatal(err1)
-	}
-	return conf
 }
 
 func sendToClound(logfile string) {
@@ -375,47 +287,19 @@ func sendToClound(logfile string) {
 	}
 }
 
-func extractConf(configdir string, dir embed.FS) {
-	myDirFiles, _ := dir.ReadDir(EXTENSION)
-	for _, de := range myDirFiles {
-		f, err := os.Create(configdir + de.Name())
-		if err != nil {
-			log.Fatal(err)
-		}
-		fdata, err := dir.ReadFile(EXTENSION + "/" + de.Name())
-		if err != nil {
-			log.Fatal(err)
-		}
-		fmt.Fprint(f, string(fdata))
-	}
-}
-
 func main() {
+	configdir := Directory{}
+	configdir.Init()
+	/*configdir.ForEachAll(func(conf *Service, action *Action) {
+		fmt.Printf("%s -> ", conf.Caption)
+		fmt.Printf("%s \n ", action.Name)
+	})
+	//os.Exit(0)*/
+
 	fmt.Println("makelogs", _VERSION)
 
-	configdir, err := os.UserHomeDir()
-	if err != nil {
-		log.Fatal(err)
-	}
-	configdir = configdir + "/.local/share/makelogs/"
-
-	/*
-		TODO
-			if not found /var/$configdir => script not installed by pacman:
-					extract yaml resources
-			else
-				use files in /var/
-	*/
-
-	if _, err := os.Stat(configdir); errors.Is(err, fs.ErrNotExist) {
-		// extract resources only at first run ... ?
-		// TODO unsecure to have these scripts in home ... extract allways / use only embed files ? or use /var/
-		os.MkdirAll(configdir, os.ModePerm)
-		extractConf(configdir, fe)
-	}
-
 	args := os.Args[1:]
-	filename := configdir + "default." + EXTENSION
+	filename := configdir.Dir + "default." + EXTENSION
 	if len(args) > 0 {
 		if args[0][0] == '-' {
 			// command or option
@@ -438,15 +322,9 @@ func main() {
 				os.Exit(0)
 			}
 			if *listCmd {
-				matches, err := filepath.Glob(configdir + "/*." + EXTENSION)
-				if err != nil {
-					fmt.Println(err)
-					os.Exit(1)
-				}
-				for _, filename := range matches {
-					conf := loadConf(filename)
-					displayShort(path.Base(filename), conf)
-				}
+				configdir.ForEach(func(conf *Service) {
+					displayShort(conf)
+				})
 				os.Exit(0)
 			}
 			if *findCmd {
@@ -454,23 +332,18 @@ func main() {
 					os.Exit(127)
 				}
 				search := strings.ToLower(flag.Args()[0])
-				matches, err := filepath.Glob(configdir + "/*." + EXTENSION)
-				if err != nil {
-					fmt.Println(err)
-					os.Exit(1)
+				if len(search) < 3 {
+					os.Exit(127)
 				}
-				fmt.Printf("Search: %s", search)
+				fmt.Printf("Search: \"%v%s%v\"\n", COLOR_BLUE, search, COLOR_NONE)
 				verboseFlag = true
-				for _, filename := range matches {
-					conf := loadConf(filename)
-					for _, action := range conf.Actions {
-						strf := strings.ToLower(action.Name + " " + action.GetTitle() + " " + action.Command)
-						//fmt.Printf("%s", str)
-						if strings.Contains(strf, search) && action.Object == "" {
-							fmt.Println(action)
-						}
+				configdir.ForEachAll(func(conf *Service, action *Action) {
+					strf := strings.ToLower(action.Name + " " + action.GetTitle() + " " + action.Command)
+					if strings.Contains(strf, search) && action.Object == "" {
+						fmt.Print(action)
 					}
-				}
+				})
+				fmt.Println("")
 				os.Exit(0)
 			}
 			if *sendCmd {
@@ -495,7 +368,7 @@ func main() {
 				filename = pwd + "/" + filename
 			}
 			if !strings.HasPrefix(filename, "/") {
-				filename = configdir + "/" + filename
+				filename = configdir.Dir + "/" + filename
 			}
 		}
 	}
