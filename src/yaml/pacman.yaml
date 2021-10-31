@@ -1,0 +1,40 @@
+caption: "Pacman informations"
+version: "0.0.1"
+actions:
+
+  - name: "arch"
+    command: "pacman-conf | awk '/^Architecture/ {print $3}'"
+    title:
+      en: "Architecture"
+
+  - name: "branch"
+    command: "pacman-conf -r core |awk -F'/' '/^Server/ {$(NF=NF-2); print ($NF);exit}'"
+    title:
+      fr: "Branche"
+
+  - name: "mirors"
+    command: " pacman-conf -r core | awk -F' ' '/^Server/ {print $3}'| head -n3"
+    title:
+      fr: "Mirroirs"
+
+
+  - name: "logs activity"
+    object: "LogsActivity"
+    count: 7  # last 5 days
+    title:
+      en: "Pacman ALPM activities"
+
+  - name: "logs activity upgrades"
+    object: "LogsActivity"
+    count: 35  # last 5 days
+    regex: " upgraded "
+    title:
+      en: "Pacman activities"
+
+
+  - name: "logs activity removes"
+    object: "LogsActivity"
+    count: 35  # last 5 days
+    regex: " removed "
+    title:
+      en: "Pacman activities"

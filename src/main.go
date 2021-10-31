@@ -43,6 +43,7 @@ type Action struct {
 	Type    string `yaml:"type"`
 	Level   int    `yaml:"level"`
 	Count   int    `yaml:"count"`
+	Regex   string `yaml:"regex"`
 	Titles  struct {
 		En string `yaml:"en"`
 		De string `yaml:"de"`
@@ -190,7 +191,20 @@ func (a *Action) exec() bool {
 				obj := Journald{level: a.Level, count: a.Count}
 				out := obj.exec()
 				if out != "" {
-					a.Output = stripansi.Strip(out)
+					a.Output = out
+					return true
+				}
+			case "LogsActivity":
+				if a.Count == 0 {
+					a.Count = 30
+				}
+				if a.Regex == "" {
+					a.Regex = ".*"
+				}
+				obj := LogsActivity{count: a.Count, regex: a.Regex}
+				out := obj.exec()
+				if out != "" {
+					a.Output = out
 					return true
 				}
 			default:
@@ -248,7 +262,7 @@ func display(conf *Service, verbose bool) {
 	for _, action := range conf.Actions {
 		if action.Output != "" {
 			fmt.Printf("%s\n%v\n", action, action.Output)
-			fmt.Fprintf(f, "\n:: %s\n```\n%v```\n", action.Name, action.Output)
+			fmt.Fprintf(f, "\n:: %s\n```\n%v```\n", action.Name, stripansi.Strip(action.Output))
 		} else {
 			if verbose {
 				fmt.Fprintf(os.Stderr, "%sWarning%s: Nothing for %s\n", COLOR_RED, COLOR_NONE, action.Name)

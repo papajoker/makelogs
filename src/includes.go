@@ -4,9 +4,14 @@ package main
 	object to call in yaml files
 */
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
+	"log"
+	"math"
+	"os"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -85,4 +90,73 @@ func (j Journald) exec() string {
 		return ret
 	}
 	return ""
+}
+
+type LogsActivity struct {
+	count int
+	regex string
+}
+
+/*
+[2021-10-28T04:01:19+0200] [PACMAN] starting full system upgrade
+[2021-10-28T10:11:07+0200] [ALPM] transaction started
+[2021-10-31T01:22:07+0200] [ALPM] upgraded xmlsec (1.2.32-1 -> 1.2.33-1)
+[2021-08-06T21:08:06+0200] [ALPM] removed tk (8.6.11.1-1)
+[2021-08-05T21:05:23+0200] [ALPM] installed libtg_owt (0.git6.91d836d-2)
+[2021-10-30T15:30:22+0200] [ALPM] transaction completed
+*/
+
+func (l LogsActivity) reg(line string, reg *regexp.Regexp) bool {
+	//fmt.Printf("%s - %s \n", t)
+	return reg.MatchString(line)
+}
+
+func (l LogsActivity) exec() (ret string) {
+	now := time.Now().AddDate(0, -0, -l.count)
+	var validID = regexp.MustCompile(l.regex)
+
+	file, err := os.Open("/var/log/pacman.log")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer file.Close()
+
+	calendar := make(map[string]int)
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if len(line) > 20 && line[0] == '[' {
+			d := line[1:11]
+			t, _ := time.Parse("2006-01-02", d)
+			if t.After(now) {
+				if strings.Index(line, "[ALPM] ") == -1 {
+					continue
+				}
+				/*
+					run regex ...
+				*/
+				if l.reg(line, validID) {
+					if _, ok := calendar[d]; ok {
+						calendar[d] += 1
+					} else {
+						calendar[d] = 1
+					}
+				}
+			}
+		}
+	}
+	max := func() (max int) {
+		for _, v := range calendar {
+			if v > max {
+				max = v
+			}
+		}
+		return max
+	}()
+	for i, val := range calendar {
+		pourcent := int(math.Round((float64(val) * float64(100)) / float64(max)))
+		ret += fmt.Sprintf("%s %v%-3v%v %s\n", i, COLOR_GREEN, val, COLOR_NONE, strings.Repeat("█", pourcent))
+	}
+	return ret
 }
