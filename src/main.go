@@ -26,7 +26,7 @@ const (
 	COLOR_GREEN = "\033[0;36m"
 	COLOR_RED   = "\033[38;5;124m"
 	COLOR_GRAY  = "\033[38;5;243m"
-	_VERSION    = "0.1.0"
+	_VERSION    = "0.1.1"
 	LOGFILE     = "logs.md"
 	EXTENSION   = "yaml"
 )
@@ -269,6 +269,7 @@ func display(conf *Service, verbose bool) {
 			}
 		}
 	}
+	fmt.Printf("\nOutput file : %v%s%v\n", COLOR_GREEN, LOGFILE, COLOR_NONE)
 }
 
 func searchCommand(search string, configdir *Directory) {
@@ -327,25 +328,37 @@ func sendToClound(logfile string) {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(127)
 	}
+
+	out := ""
 	if strings.ToUpper(input) == "Y" {
 
-		cloud := func(name string, url string) (err error) {
+		cloud := func(name string, url string) (string, error) {
 			cmd := fmt.Sprintf("cat '%s' | curl -s -F %s", logfile, url)
-			out, err := exec.Command("bash", "-c", cmd).CombinedOutput()
-			if err != nil {
-				return fmt.Errorf("error %s : %s - %s", name, string(out), err)
+			o, e := exec.Command("bash", "-c", cmd).CombinedOutput()
+			if e != nil {
+				return "", fmt.Errorf("error %s : %s - %s", name, string(o), e)
 			} else {
-				fmt.Printf("\n:: cloud url is : %v%s%v\f", COLOR_GREEN, string(out), COLOR_NONE)
-				return nil
+				fmt.Printf("\n:: cloud url is : %v%s%v\n", COLOR_GREEN, string(o), COLOR_NONE)
+				return string(o), nil
 			}
 		}
 
-		if err := cloud("ix.io", "'f:1;read:1=<-' http://ix.io"); err != nil {
+		//TODO rm read:2
+		out, err = cloud("ix.io", "'f:1;read:1=<-' Xhttp://ix.io")
+		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
-			//TODO rm read:1
-			if err := cloud("sprunge", "'sprunge=<-' http://sprunge.us?md"); err != nil {
+			out, err = cloud("sprunge", "'sprunge=<-' http://sprunge.us?md")
+			if err != nil {
 				fmt.Fprintln(os.Stderr, err)
 				os.Exit(1)
+			}
+		}
+
+		if out != "" {
+			f, err := os.OpenFile(logfile, os.O_APPEND|os.O_WRONLY, 0644)
+			if err == nil {
+				defer f.Close()
+				fmt.Fprintf(f, "\n-----\n\nUrl : %s\n", out)
 			}
 		}
 
@@ -368,9 +381,7 @@ func main() {
 			sendCmd := flag.Bool("s", false, "Send log to cloud")
 			findCmd := flag.Bool("f", false, "find  a command")
 			flag.BoolVar(&verboseFlag, "v", false, "verbose")
-
 			flag.Parse()
-			//fmt.Println(flag.Args())
 
 			if *helpCmd {
 				fmt.Println("run -l for list all config available as:")
@@ -404,11 +415,6 @@ func main() {
 			}
 
 			args = flag.Args()
-			/*
-				if len(args) < 1 {
-					os.Exit(0)
-				}
-			*/
 		}
 		if len(args) > 0 && args[0][0] != '-' {
 			filename = args[0]
