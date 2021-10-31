@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"errors"
 	"flag"
 	"fmt"
@@ -9,6 +10,8 @@ import (
 	"os"
 	"os/exec"
 	"reflect"
+	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -23,7 +26,7 @@ const (
 	COLOR_GREEN = "\033[0;36m"
 	COLOR_RED   = "\033[38;5;124m"
 	COLOR_GRAY  = "\033[38;5;243m"
-	_VERSION    = "0.0.5"
+	_VERSION    = "0.1.0"
 	LOGFILE     = "logs.md"
 	EXTENSION   = "yaml"
 )
@@ -51,6 +54,7 @@ type Action struct {
 	Requires []string `yaml:"require"`
 	Pkgs     string   `yaml:"pkgs"`
 	Output   string
+	Id       int
 }
 
 type Service struct {
@@ -71,6 +75,9 @@ func (a Action) String() string {
 
 	if verboseFlag {
 		ty := fmt.Sprintf("\t%-12s\t%s\n", "Type:", a.Type)
+		if a.Type == "" {
+			ty = ""
+		}
 
 		title := a.GetTitle()
 		if title != "" {
@@ -230,7 +237,7 @@ func displayShort(conf *Service) {
 	fmt.Println("")
 }
 
-func display(conf *Service) {
+func display(conf *Service, verbose bool) {
 	f, err := os.Create(LOGFILE)
 	if err != nil {
 		log.Fatal(err)
@@ -243,7 +250,52 @@ func display(conf *Service) {
 			fmt.Printf("%s\n%v\n", action, action.Output)
 			fmt.Fprintf(f, "\n:: %s\n```\n%v```\n", action.Name, action.Output)
 		} else {
-			fmt.Fprintf(os.Stderr, "%sWarning%s: Nothing for %s\n", COLOR_RED, COLOR_NONE, action.Name)
+			if verbose {
+				fmt.Fprintf(os.Stderr, "%sWarning%s: Nothing for %s\n", COLOR_RED, COLOR_NONE, action.Name)
+			}
+		}
+	}
+}
+
+func searchCommand(search string, configdir *Directory) {
+	fmt.Printf("Search: \"%v%s%v\"\n", COLOR_BLUE, search, COLOR_NONE)
+	verboseFlag = true
+	results := Service{Caption: search}
+	i := 0
+	r := strings.ReplaceAll(search, " ", "|")
+	r = strings.ReplaceAll(r, "+", ".*")
+	var validID = regexp.MustCompile(r)
+	configdir.ForEachAll(func(conf *Service, action *Action) {
+		strf := strings.ToLower(action.Name + " " + action.GetTitle() + " " + action.Command)
+		if validID.MatchString(strf) {
+			i++
+			action.Id = i
+			results.Actions = append(results.Actions, *action)
+		}
+	})
+	for i, action := range results.Actions {
+		t := action.GetTitle()
+		if t != "" {
+			t = "\n   " + t
+		}
+		fmt.Printf("\n%-3d:: %v%s%v%s\n   %s\n", i+1, COLOR_GREEN, action.Name, COLOR_NONE, t, action.Command)
+	}
+	fmt.Println("")
+	if len(results.Actions) > 0 {
+		fmt.Printf("Command to run ? (1..%d) ", len(results.Actions))
+
+		scanner := bufio.NewScanner(os.Stdin)
+		if scanner.Scan() {
+			fmt.Println("")
+			for _, number := range strings.Fields(scanner.Text()) {
+				id, err := strconv.Atoi(number)
+				if err != nil || id < 1 || id > len(results.Actions) {
+					continue
+				}
+				results.Actions[id-1].exec()
+			}
+
+			display(&results, false)
 		}
 	}
 }
@@ -325,24 +377,11 @@ func main() {
 				if len(flag.Args()) < 1 {
 					os.Exit(127)
 				}
-				search := strings.ToLower(flag.Args()[0])
+				search := strings.ToLower(strings.Join(flag.Args(), " "))
 				if len(search) < 3 {
 					os.Exit(127)
 				}
-				fmt.Printf("Search: \"%v%s%v\"\n", COLOR_BLUE, search, COLOR_NONE)
-				verboseFlag = true
-				configdir.ForEachAll(func(conf *Service, action *Action) {
-					strf := strings.ToLower(action.Name + " " + action.GetTitle() + " " + action.Command)
-					if strings.Contains(strf, search) && action.Object == "" {
-						t := action.GetTitle()
-						if t != "" {
-							t = "\n   " + t
-						}
-						fmt.Printf("\n::%v%s%v%s\n   %s\n", COLOR_GREEN, action.Name, COLOR_NONE, t, action.Command)
-						//fmt.Print(action)
-					}
-				})
-				fmt.Println("")
+				searchCommand(search, &configdir)
 				os.Exit(0)
 			}
 			if *sendCmd {
@@ -382,7 +421,7 @@ func main() {
 	start := time.Now()
 
 	run(conf)
-	display(conf)
+	display(conf, true)
 
 	log.Printf("Duration: %s", time.Since(start))
 
