@@ -156,7 +156,7 @@ func (l LogsActivity) exec() (ret string) {
 	}()
 	for i, val := range calendar {
 		pourcent := int(math.Round((float64(val) * float64(100)) / float64(max)))
-		ret += fmt.Sprintf("%s %v%-3v%v %s\n", i, COLOR_GREEN, val, COLOR_NONE, strings.Repeat("█", pourcent))
+		ret += fmt.Sprintf("%s %v%-3v%v %s\n", i, COLOR_GREEN, val, COLOR_NONE, strings.Repeat("━", pourcent))
 	}
 	return ret
 }
