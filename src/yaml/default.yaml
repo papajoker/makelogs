@@ -3,7 +3,8 @@ version: "0.0.1"
 actions:
 
   - name: "lsb-release"
-    command: "cat /etc/lsb-release; echo Desktop: $DESKTOP_SESSION"
+    command: "cat /etc/lsb-release;
+      echo Desktop: $DESKTOP_SESSION"
     type: "shell"
     title:
       en: "System info"
