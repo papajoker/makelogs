@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -26,11 +27,16 @@ const (
 	COLOR_GREEN = "\033[0;36m"
 	COLOR_RED   = "\033[38;5;124m"
 	COLOR_GRAY  = "\033[38;5;243m"
-	_VERSION    = "0.1.1"
 	LOGFILE     = "logs.md"
 	EXTENSION   = "yaml"
 )
 
+var (
+	GitBranch string
+	Version   string
+	BuildDate string
+	GitID     string
+)
 var verboseFlag bool = false
 
 //var includeCommands = [2]string{"PkgVer", "Journald"}
@@ -369,7 +375,6 @@ func sendToClound(logfile string) {
 func main() {
 	configdir := Directory{}
 	configdir.Init()
-	fmt.Println("makelogs", _VERSION)
 
 	args := os.Args[1:]
 	filename := configdir.Dir + "default." + EXTENSION
@@ -384,12 +389,16 @@ func main() {
 			flag.Parse()
 
 			if *helpCmd {
+
+				cmd := filepath.Base(os.Args[0])
+				fmt.Printf("\n%v%s%v Version: %v-%v %v %v\n\n", COLOR_GREEN, cmd, COLOR_NONE, Version, GitID, GitBranch, BuildDate)
+
 				fmt.Println("run -l for list all config available as:")
-				fmt.Println("\t./makelogs # load default")
-				fmt.Println("\t./makelogs wifi")
-				fmt.Println("\t./makelogs disk")
+				fmt.Printf("   ./%s    # load default\n", cmd)
+				fmt.Printf("   ./%s wifi\n", cmd)
+				fmt.Printf("   ./%s disk\n", cmd)
 				fmt.Println("\nREAD/Edit result file:", LOGFILE)
-				fmt.Println("\nSend this file to cloud : \"./makelogs -s\"")
+				fmt.Printf("\nSend this file to cloud : \"./%s -s\"\n", cmd)
 				os.Exit(0)
 			}
 			if *listCmd {
