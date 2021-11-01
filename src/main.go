@@ -151,7 +151,6 @@ func (a *Action) exec() bool {
 
 	// packages and files installed ?
 	for _, req := range a.Requires {
-		println("==>" + req)
 		if strings.HasPrefix(req, "bash:") {
 			req = req[5:]
 			if exec.Command("bash", "-c", req).Run() != nil {
