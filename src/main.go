@@ -151,15 +151,25 @@ func (a *Action) exec() bool {
 
 	// packages and files installed ?
 	for _, req := range a.Requires {
+		println("==>" + req)
+		if strings.HasPrefix(req, "bash:") {
+			req = req[5:]
+			if exec.Command("bash", "-c", req).Run() != nil {
+				fmt.Fprintf(os.Stderr, "%sWarning%s: bash condition false \"%s\"\n", COLOR_RED, COLOR_NONE, req)
+				return false
+			}
+			continue
+		}
 		if req[0] == '/' {
 			if _, err := os.Stat(req); errors.Is(err, fs.ErrNotExist) {
 				fmt.Fprintf(os.Stderr, "%sWarning%s: file not found \"%s\"\n", COLOR_RED, COLOR_NONE, req)
 				return false
 			}
+			continue
 		} else {
 			req = strings.ToLower(req)
-			_, err := exec.Command("bash", "-c", fmt.Sprintf("LANG=C pacman -Qi %s", req)).Output()
-			if err != nil {
+			if exec.Command("bash", "-c", fmt.Sprintf("LANG=C pacman -Qi %s", req)).Run() != nil {
+				//if err != nil {
 				fmt.Fprintf(os.Stderr, "%sWarning%s: package not found \"%s\"\n", COLOR_RED, COLOR_NONE, req)
 				return false
 			}
