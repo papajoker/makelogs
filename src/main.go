@@ -186,45 +186,24 @@ func (a *Action) exec() bool {
 		return true
 	} else {
 		// use object in source code
-		// TODO use includeCommands ?s
 		if a.Object != "" {
+			var obj ObjectLog
 			switch a.Object {
 			case "PkgVer":
-				obj := PkgVer{pkgs: strings.ToLower(a.Pkgs)}
-				out := obj.exec()
-				if out != "" {
-					a.Output = stripansi.Strip(out)
-					return true
-				}
+				obj = new(PkgVer)
 			case "Journald":
-				if a.Level == 0 {
-					a.Level = 3
-				}
-				if a.Count == 0 {
-					a.Count = 32
-				}
-				obj := Journald{level: a.Level, count: a.Count}
-				out := obj.exec()
-				if out != "" {
-					a.Output = out
-					return true
-				}
+				obj = new(Journald)
 			case "LogsActivity":
-				if a.Count == 0 {
-					a.Count = 30
-				}
-				if a.Regex == "" {
-					a.Regex = ".*"
-				}
-				obj := LogsActivity{count: a.Count, regex: a.Regex}
-				out := obj.exec()
-				if out != "" {
-					a.Output = out
-					return true
-				}
+				obj = new(LogsActivity)
 			default:
 				fmt.Fprintf(os.Stderr, "Warning: function \"%s\" not in App\n", a.Object)
 				return false
+			}
+			obj.init(a)
+			out := obj.exec()
+			if out != "" {
+				a.Output = stripansi.Strip(out)
+				return true
 			}
 		}
 	}

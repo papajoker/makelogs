@@ -17,12 +17,21 @@ import (
 	"time"
 )
 
+type ObjectLog interface {
+	exec() string
+	init(a *Action)
+}
+
 // ###############
 // Display packages name and version if installed
 // ###############
 
 type PkgVer struct {
 	pkgs string
+}
+
+func (p *PkgVer) init(a *Action) {
+	p.pkgs = strings.ToLower(a.Pkgs)
 }
 
 func (p PkgVer) exec() string {
@@ -53,6 +62,17 @@ type JournalType struct {
 type Journald struct {
 	level int
 	count int
+}
+
+func (j *Journald) init(a *Action) {
+	if a.Level == 0 {
+		a.Level = 3
+	}
+	if a.Count == 0 {
+		a.Count = 32
+	}
+	j.count = a.Count
+	j.level = a.Level
 }
 
 func (j Journald) exec() string {
@@ -94,7 +114,7 @@ func (j Journald) exec() string {
 
 type LogsActivity struct {
 	count int
-	regex string
+	regex *regexp.Regexp
 }
 
 /*
@@ -106,14 +126,19 @@ type LogsActivity struct {
 [2021-10-30T15:30:22+0200] [ALPM] transaction completed
 */
 
-func (l LogsActivity) reg(line string, reg *regexp.Regexp) bool {
-	//fmt.Printf("%s - %s \n", t)
-	return reg.MatchString(line)
+func (l *LogsActivity) init(a *Action) {
+	if a.Count == 0 {
+		a.Count = 30
+	}
+	if a.Regex == "" {
+		a.Regex = ".*"
+	}
+	l.count = a.Count
+	l.regex = regexp.MustCompile(a.Regex)
 }
 
 func (l LogsActivity) exec() (ret string) {
 	now := time.Now().AddDate(0, -0, -l.count)
-	var validID = regexp.MustCompile(l.regex)
 
 	file, err := os.Open("/var/log/pacman.log")
 	if err != nil {
@@ -133,10 +158,8 @@ func (l LogsActivity) exec() (ret string) {
 				if strings.Index(line, "[ALPM] ") == -1 {
 					continue
 				}
-				/*
-					run regex ...
-				*/
-				if l.reg(line, validID) {
+				//run regex ...
+				if l.regex.MatchString(line) {
 					if _, ok := calendar[d]; ok {
 						calendar[d] += 1
 					} else {
