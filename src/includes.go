@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -177,9 +178,20 @@ func (l LogsActivity) exec() (ret string) {
 		}
 		return max
 	}()
-	for i, val := range calendar {
-		pourcent := int(math.Round((float64(val) * float64(100)) / float64(max)))
-		ret += fmt.Sprintf("%s %v%-3v%v %s\n", i, COLOR_GREEN, val, COLOR_NONE, strings.Repeat("━", pourcent))
+	sortc := func(map[string]int) []string {
+		keys := make([]string, len(calendar))
+		i := 0
+		for k := range calendar {
+			keys[i] = k
+			i++
+		}
+		sort.Strings(keys)
+		return keys
+	}
+	for _, i := range sortc(calendar) {
+		c := calendar[i]
+		pourcent := int(math.Round((float64(c) * float64(100)) / float64(max)))
+		ret += fmt.Sprintf("%s %v%-3v%v %s\n", i, COLOR_GREEN, c, COLOR_NONE, strings.Repeat("━", pourcent))
 	}
 	return ret
 }
