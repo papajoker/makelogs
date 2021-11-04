@@ -29,13 +29,6 @@ actions:
       en: "Systemd log Errors level:3 to 0"
       fr: "Erreurs log systemd niveau: 3 à 0"
 
-  - name: "Journal warnings"
-    command: "SYSTEMD_COLORS=0 journalctl -b0 -p4 -qr -n32 --no-pager --no-hostname"
-    type: "shell"
-    title:
-      en: "Systemd log Warnings and Errors, level:4 to 0"
-      fr: "Warnings et Erreurs log systemd, niveau: 4 à 0"
-
   - name: "Custum Journal errors"
     object: "Journald"
     type: "include"
@@ -43,10 +36,15 @@ actions:
       en: "Systemd log Errors, level:3 to 0"
       fr: "Erreurs log systemd, niveau: 3 à 0"
     require:
-      - "systemd" # run if package installed
-      - "/usr/bin/journalctl" # run if file exists
+      - "systemd"     # run if package installed
+      - "/usr/bin/journalctl"   # run if file exists
 
   - name: "List Packages"
     object: "PkgVer"
     type: "include"
     pkgs: "Pacman trucmuche bash"
+
+  - name: "Original config modified"
+    command: "pacman -Qii | awk '/^MODIFIED/ {print $2}' | grep -Ev '(passwd|group|locale.gen|pamac.conf|mirrorlist)$'"
+    title:
+      fr : "Configuration originale modifiée"

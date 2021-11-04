@@ -11,3 +11,9 @@ actions:
     command: "systemctl show display-manager|awk -v FS='[=.]' '/^Id/ {print $2}'"
     title:
       en: "one command only for search function"
+
+  - name: "process by Memory"
+    command: "top -b -n 1 -o "+%MEM" | head -22"
+
+  - name: "process by cpu"
+    command: "top -b -n 1 -o "+%CPU" | head -22"

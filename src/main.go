@@ -39,8 +39,6 @@ var (
 )
 var verboseFlag bool = false
 
-//var includeCommands = [2]string{"PkgVer", "Journald"}
-
 // yaml Type gen by: https://zhwt.github.io/yaml-to-go/
 type Action struct {
 	Name    string `yaml:"name"`
@@ -149,7 +147,7 @@ func (a Action) GetTitle() string {
 func (a *Action) exec() bool {
 	a.Output = ""
 
-	// packages and files installed ?
+	// exit if Required not ok
 	for _, req := range a.Requires {
 		if strings.HasPrefix(req, "bash:") {
 			req = req[5:]
@@ -157,18 +155,14 @@ func (a *Action) exec() bool {
 				fmt.Fprintf(os.Stderr, "%sWarning%s: bash condition false \"%s\"\n", COLOR_RED, COLOR_NONE, req)
 				return false
 			}
-			continue
-		}
-		if req[0] == '/' {
+		} else if req[0] == '/' {
 			if _, err := os.Stat(req); errors.Is(err, fs.ErrNotExist) {
 				fmt.Fprintf(os.Stderr, "%sWarning%s: file not found \"%s\"\n", COLOR_RED, COLOR_NONE, req)
 				return false
 			}
-			continue
 		} else {
 			req = strings.ToLower(req)
 			if exec.Command("bash", "-c", fmt.Sprintf("LANG=C pacman -Qi %s", req)).Run() != nil {
-				//if err != nil {
 				fmt.Fprintf(os.Stderr, "%sWarning%s: package not found \"%s\"\n", COLOR_RED, COLOR_NONE, req)
 				return false
 			}
@@ -180,31 +174,24 @@ func (a *Action) exec() bool {
 		out, err := exec.Command("bash", "-c", "LANG=C "+a.Command+"|cat").Output()
 		if err != nil {
 			return false
-			//panic(fmt.Sprintf("Error in %s", a.Name))
 		}
 		a.Output = stripansi.Strip(string(out))
 		return true
-	} else {
-		// use object in source code
-		if a.Object != "" {
-			var obj ObjectLog
-			switch a.Object {
-			case "PkgVer":
-				obj = new(PkgVer)
-			case "Journald":
-				obj = new(Journald)
-			case "LogsActivity":
-				obj = new(LogsActivity)
-			default:
-				fmt.Fprintf(os.Stderr, "Warning: function \"%s\" not in App\n", a.Object)
-				return false
-			}
+	}
+
+	// use object in source code
+	if a.Object != "" {
+		obj, err := Objectfactory(a.Object)
+		if err == nil {
 			obj.init(a)
 			out := obj.exec()
 			if out != "" {
 				a.Output = stripansi.Strip(out)
 				return true
 			}
+		} else {
+			fmt.Fprintf(os.Stderr, err.Error())
+			return false
 		}
 	}
 	return false
@@ -338,7 +325,7 @@ func sendToClound(logfile string) {
 		}
 
 		//TODO rm read:2
-		out, err = cloud("ix.io", "'f:1;read:1=<-' Xhttp://ix.io")
+		out, err = cloud("ix.io", "'f:1;read:1=<-' http://ix.io")
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			out, err = cloud("sprunge", "'sprunge=<-' http://sprunge.us?md")

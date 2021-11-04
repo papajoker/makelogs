@@ -195,3 +195,15 @@ func (l LogsActivity) exec() (ret string) {
 	}
 	return ret
 }
+
+func Objectfactory(name string) (ObjectLog, error) {
+	switch name {
+	case "PkgVer":
+		return new(PkgVer), nil
+	case "Journald":
+		return new(Journald), nil
+	case "LogsActivity":
+		return new(LogsActivity), nil
+	}
+	return nil, fmt.Errorf("warning: \"%s\" feature not present", name)
+}

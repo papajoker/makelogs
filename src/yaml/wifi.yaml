@@ -1,3 +1,5 @@
+## Authors: Cenwen
+
 caption: "Wifi logs"
 version: "0.0.1"
 actions: 
@@ -9,7 +11,6 @@ actions:
       fr: "System Informations"
     require:
       - "/etc/lsb-release"
-
 
   - name: "Zone Wifi"
     command: "iw reg get"
@@ -69,21 +70,7 @@ actions:
     title:
       fr: "Affichage des journaux pour NetworkManager"
 
-  - name: "test"
-    command: "env"
-    title:
-      en: environment test
-
   - name: "router:"
     command: "ip route show default|awk '{print $3 }';smbclient -NL $(ip route show default|awk '{print $3 }')"
     require:
       - "/usr/bin/smbclient"
-
-  - name: "List Packages"
-    object: "PkgVer"
-    type: "include"
-    pkgs: "Pacman trucmuche bash"
-    require:
-      - "pacman"
-      - "/usr/bin/pacman"
-      
