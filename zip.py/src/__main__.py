@@ -3,6 +3,13 @@
     yaml to object ... ?
     https://stackoverflow.com/questions/49029459/read-yaml-file-and-create-python-objects
 """
+# TODO
+"""
+    yaml interave yaml commands ?
+    command: "ls -l %ASK%"
+    ask: "Enter directory"
+    if %ASK% in command, then prompt question "ask" key ...
+"""
 import sys
 from pathlib import Path
 from typing import Generator
@@ -201,8 +208,8 @@ def search_in_files(args: list) -> Generator:
 
 def main(datas, log_filename):
 
-    if len(datas['actions']) < 1:
-        return
+    #if len(datas['actions']) < 1:
+    #    return
 
     if datas.get('sudo', 0) == 1:
         print("\n Command use admin rights, use sudo")
@@ -271,6 +278,9 @@ def main(datas, log_filename):
                 print(
                     f'Warning: Object "{action["object"]}" not exits \N{face with head-bandage}', file=sys.stderr)
 
+    if not results:
+        exit(12)
+
     with open(log_filename, "w+") as flog:
         flog.write(f"## {datas['caption']}")
         for item in results:
@@ -317,7 +327,7 @@ if __name__ == "__main__":
         if sys.argv[1].lower() == '-f' and len(sys.argv) > 2:
             main({
                 "caption":"Search",
-                "actions":search_in_files(sys.argv[2:])
+                "actions":list(search_in_files(sys.argv[2:]))
                 },
                 log_filename)
             exit(0)
