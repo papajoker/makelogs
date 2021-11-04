@@ -2,8 +2,7 @@ caption: "test actions included"
 version: "0.0.1"
 actions:
   - name: "Custum Journal errors"
-    object: "Journald"
-    type: "include"
+    object: Journald
     level: 3  # default = 3
     count: 78 # default = 32
     title:
@@ -12,12 +11,20 @@ actions:
     require:
       - "systemd" # run if package installed
       - "/usr/bin/journalctl" # run if file exists
-      #- "bash: grep 'toto' /etc/pacman.conf"  # run if command return 0
+      - "bash: grep 'toto' /etc/pacman.conf"  # run if command return 0
 
   - name: "List Packages"
     object: "PkgVer"
-    type: "include"
     pkgs: "Pacman trucmuche bash"
     require:
-      - "Pacman"
+      - Pacman
       - "/usr/bin/pacman"
+
+  - name: "Package pacman installed ?"
+    object: PkgExists
+    pkgs: "pacman"
+
+
+  - name: "Package toto installed ?"
+    object: PkgExists
+    pkgs: "toto"

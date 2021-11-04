@@ -1,4 +1,5 @@
 caption: "Default logs"
+sudo: 0
 version: "0.0.1"
 actions:
 
@@ -45,6 +46,6 @@ actions:
     pkgs: "Pacman trucmuche bash"
 
   - name: "Original config modified"
-    command: "pacman -Qii | awk '/^MODIFIED/ {print $2}' | grep -Ev '(passwd|group|locale.gen|pamac.conf|mirrorlist)$'"
+    command: "pacman -Qii | awk '/^MODIFIED/ {print $2}' | grep -Ev '(passwd|group|locale.gen|pamac.conf|mirrorlist|fstab)$'"
     title:
       fr : "Configuration originale modifiée"
