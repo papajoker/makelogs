@@ -205,6 +205,28 @@ def search_in_files(args: list) -> Generator:
     for i in { int(x, 10) for x in choice if x.isnumeric() and int(x, 10) <= max and int(x) >0}:
         yield results[i-1]
 
+def search_in_params(args: list) -> Generator:
+    """ list yaml files and return commands in script parameters """
+    for yaml in Path(configdir).glob("*.yaml"):
+        datas = load_yaml(['', str(yaml)])
+        service = yaml.stem
+        for action in datas['actions']:
+            cmd = f"{service}:{action['name']}".replace(' ', '_')
+            if '(' in cmd or '?' in cmd:
+                cmd = f"'{cmd}'"
+            if cmd in args:
+                yield action
+
+def display_commands(args: list):
+    """ list yaml files and display commands """
+    for yaml in get_files_name():
+        datas = load_yaml(['', str(yaml)])
+        service = yaml.stem
+        for action in datas['actions']:
+            cmd = f"{service}:{action['name']}".replace(' ', '_')
+            if '(' in cmd or '?' in cmd:
+                cmd = f"'{cmd}'"
+            print(f"{cmd}")
 
 def main(datas, log_filename):
 
@@ -298,11 +320,13 @@ def main(datas, log_filename):
 def usage():
     
     print(f"""\n./{COLOR_GREEN}makelogs{COLOR_NONE} [log]
-    -l : List logs available
-    -f : Find/run some command
-    -s : Send log file in cloud
+    -l  : List logs available
+    -f  : Find/run some command
+    -s  : Send log file in cloud
 
-    -c : refresh Configuration
+    -lr : list commands available for "-r"
+    -r [command .. command] : run commands
+    -c  : refresh Configuration
 
     [log] : short name listed by command \"-v"
             {COLOR_GRAY}{', '.join([ s.stem for s in get_files_name()])}{COLOR_NONE}
@@ -330,6 +354,18 @@ if __name__ == "__main__":
                 "actions":list(search_in_files(sys.argv[2:]))
                 },
                 log_filename)
+            exit(0)
+
+        if sys.argv[1].lower() == '-r' and len(sys.argv) > 2:
+            main({
+                "caption":"My logs",
+                "actions":list(search_in_params(sys.argv[2:]))
+                },
+                log_filename)
+            exit(0)
+
+        if sys.argv[1].lower() == '-lr':
+            display_commands(sys.argv[2:])
             exit(0)
 
         if sys.argv[1].lower() == '-s':
