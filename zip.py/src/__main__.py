@@ -27,11 +27,11 @@ from datetime import datetime
 
 from includes import *
 
-from yaml.loader import Loader
 try:
     import yaml
+    from yaml.loader import Loader
 except ValueError:
-    print("Error: install python-yaml package : sudo pacman -S python-yaml")
+    print("Error: install python-yaml package : sudo pacman -S python-yaml --asdeps")
     sys.exit(4)
 
 
