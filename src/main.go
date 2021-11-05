@@ -390,7 +390,7 @@ func main() {
 					for _, action := range conf.Actions {
 						c := strings.ReplaceAll(action.Name, " ", "_")
 						ret := fmt.Sprintf("%v%s%v:%s", COLOR_GREEN, s, COLOR_NONE, c)
-						if strings.Index(c, "(") > 0 {
+						if strings.Index(c, "(") > 0 || strings.Index(c, "?") > 0 {
 							ret = fmt.Sprintf("'%s'", ret)
 						}
 						fmt.Printf("\n%s", ret)
