@@ -359,7 +359,9 @@ func main() {
 			helpCmd := flag.Bool("h", false, "Usage")
 			listCmd := flag.Bool("l", false, "List logs choice")
 			sendCmd := flag.Bool("s", false, "Send log to cloud")
-			findCmd := flag.Bool("f", false, "find  a command")
+			findCmd := flag.Bool("f", false, "Find/run command")
+			lrlistCmd := flag.Bool("lr", false, "List all command for Run")
+			rlistCmd := flag.Bool("r", false, "Run commands")
 			flag.BoolVar(&verboseFlag, "v", false, "verbose")
 			flag.Parse()
 
@@ -380,6 +382,47 @@ func main() {
 				configdir.ForEach(func(conf *Service) {
 					displayShort(conf)
 				}, "search")
+				os.Exit(0)
+			}
+			if *lrlistCmd {
+				configdir.ForEach(func(conf *Service) {
+					s := conf.Command
+					for _, action := range conf.Actions {
+						c := strings.ReplaceAll(action.Name, " ", "_")
+						ret := fmt.Sprintf("%v%s%v:%s", COLOR_GREEN, s, COLOR_NONE, c)
+						if strings.Index(c, "(") > 0 {
+							ret = fmt.Sprintf("'%s'", ret)
+						}
+						fmt.Printf("\n%s", ret)
+					}
+				}, "*")
+				fmt.Println("")
+				os.Exit(0)
+			}
+			if *rlistCmd {
+				// -r  "default:memory_(base_10)" pacman:arch
+
+				results := Service{Caption: "My logs"}
+				args = flag.Args()
+
+				fmt.Println(args)
+				configdir.ForEach(func(conf *Service) {
+					s := conf.Command
+					for _, action := range conf.Actions {
+						canr := fmt.Sprintf("%s:%s", s, strings.ReplaceAll(action.Name, " ", "_"))
+						for _, v := range args {
+							if canr == v {
+								fmt.Printf("\n %s", canr)
+								results.Actions = append(results.Actions, action)
+								break
+							}
+						}
+
+					}
+				}, "*")
+				fmt.Println("")
+				run(&results)
+				display(&results, true)
 				os.Exit(0)
 			}
 			if *findCmd {
