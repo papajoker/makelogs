@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -23,6 +22,7 @@ import (
 const (
 	//https://misc.flogisoft.com/bash/tip_colors_and_formatting
 	COLOR_NONE  = "\033[0m"
+	COLOR_BOLD  = "\033[1m"
 	COLOR_BLUE  = "\033[0;34m"
 	COLOR_GREEN = "\033[0;36m"
 	COLOR_RED   = "\033[38;5;124m"
@@ -39,166 +39,6 @@ var (
 )
 var verboseFlag bool = false
 
-// yaml Type gen by: https://zhwt.github.io/yaml-to-go/
-type Action struct {
-	Name    string `yaml:"name"`
-	Command string `yaml:"command"`
-	Object  string `yaml:"object"`
-	Type    string `yaml:"type"`
-	Level   int    `yaml:"level"`
-	Count   int    `yaml:"count"`
-	Regex   string `yaml:"regex"`
-	Titles  struct {
-		En string `yaml:"en"`
-		De string `yaml:"de"`
-		Fr string `yaml:"fr"`
-		It string `yaml:"it"`
-		Pt string `yaml:"pt"`
-		Sp string `yaml:"sp"`
-	} `yaml:"title"`
-	Requires []string `yaml:"require"`
-	Pkgs     string   `yaml:"pkgs"`
-	Output   string
-	Id       int
-}
-
-type Service struct {
-	Caption  string
-	Version  string
-	Command  string
-	WantSudo int      `yaml:"sudo"`
-	Actions  []Action `yaml:"actions"`
-}
-
-func (s *Service) ForEach(function func(action *Action)) {
-	for _, action := range s.Actions {
-		function(&action)
-	}
-}
-
-func (a Action) String() string {
-
-	if verboseFlag {
-		ty := fmt.Sprintf("\t%-12s\t%s\n", "Type:", a.Type)
-		if a.Type == "" {
-			ty = ""
-		}
-
-		title := a.GetTitle()
-		if title != "" {
-			title = fmt.Sprintf("\t%-12s\t%s\n", "Title:", title)
-		} else {
-			title = ""
-		}
-
-		req := ""
-		if len(a.Requires) > 0 {
-			req = fmt.Sprintf("\t%-12s\t%v\n", "Require:", a.Requires)
-		}
-
-		pkgs := ""
-		if a.Pkgs != "" {
-			pkgs = fmt.Sprintf("\t%-12s\t%v\n", "Packages:", a.Pkgs)
-		}
-
-		le := ""
-		c := ""
-		if a.Object == "Journald" {
-			le = fmt.Sprintf("\t%-12s\t%v\n", "Level logs:", a.Level)
-			c = fmt.Sprintf("\t%-12s\t%v\n", "max:", a.Count)
-		}
-
-		ob := ""
-		if a.Object != "" {
-			ob = fmt.Sprintf("\t%-12s\t%v\n", "Object:", a.Object)
-		} else {
-			ob = fmt.Sprintf("\t%-12s\t%v\n", "Command:", a.Command)
-		}
-		return fmt.Sprintf("\n::%v%s%v \n%s %s %s %s %s %s %s", COLOR_GREEN, a.Name, COLOR_NONE, title, ty, ob, req, pkgs, le, c)
-	} else {
-		return fmt.Sprintf("\n::%v%s%v \t%s\n", COLOR_GREEN, a.Name, COLOR_NONE, a.GetTitle())
-	}
-}
-
-func (a Action) GetTitle() string {
-	ret := a.Titles.En
-
-	langs := make(map[string]string)
-	v := reflect.ValueOf(a.Titles)
-	for i := 0; i < v.NumField(); i++ {
-		langs[strings.ToUpper(v.Type().Field(i).Name)] = v.Field(i).Interface().(string)
-	}
-
-	lg := os.Getenv("LANG")
-	if len(lg) > 4 {
-		lg = strings.ToUpper(os.Getenv("LANG")[3:5])
-	} else {
-		lg = "EN"
-	}
-
-	val, found := langs[lg]
-	if found && val != "" {
-		return val
-	}
-	return ret
-}
-
-// run command
-func (a *Action) exec() bool {
-	a.Output = ""
-
-	// exit if Required not ok
-	for _, req := range a.Requires {
-		if strings.HasPrefix(req, "bash:") {
-			req = req[5:]
-			if exec.Command("bash", "-c", req).Run() != nil {
-				fmt.Fprintf(os.Stderr, "%sWarning%s: bash condition false \"%s\"\n", COLOR_RED, COLOR_NONE, req)
-				return false
-			}
-		} else if req[0] == '/' {
-			if _, err := os.Stat(req); errors.Is(err, fs.ErrNotExist) {
-				fmt.Fprintf(os.Stderr, "%sWarning%s: file not found \"%s\"\n", COLOR_RED, COLOR_NONE, req)
-				return false
-			}
-		} else {
-			req = strings.ToLower(req)
-			if exec.Command("bash", "-c", fmt.Sprintf("LANG=C pacman -Qi %s", req)).Run() != nil {
-				fmt.Fprintf(os.Stderr, "%sWarning%s: package not found \"%s\"\n", COLOR_RED, COLOR_NONE, req)
-				return false
-			}
-		}
-	}
-
-	// shell command
-	if a.Command != "" {
-		out, err := exec.Command("bash", "-c", "LANG=C "+a.Command+"|cat").Output()
-		if err != nil {
-			return false
-		}
-		a.Output = stripansi.Strip(string(out))
-		return true
-	}
-
-	// use object in source code
-	if a.Object != "" {
-		obj, err := Objectfactory(a.Object)
-		if err == nil {
-			obj.init(a)
-			out := obj.exec()
-			if out != "" {
-				a.Output = stripansi.Strip(out)
-				return true
-			}
-		} else {
-			fmt.Fprintf(os.Stderr, err.Error())
-			return false
-		}
-	}
-	return false
-}
-
-// -------------- MAIN --------------------- //
-
 func run(conf *Service) {
 	//fmt.Printf("%v", conf)
 	fmt.Println("--------")
@@ -208,13 +48,12 @@ func run(conf *Service) {
 
 	for id := range conf.Actions {
 		wg.Add(1)
-		// 440 ms sans goroutine
-		// 320 ms avec goroutine
 		go func(id int, wg *sync.WaitGroup) { // can add go for goroutine ?
 			defer wg.Done()
-			action := conf.Actions[id]
+			conf.Actions[id].exec()
+			/*action := conf.Actions[id]
 			action.exec()
-			conf.Actions[id] = action
+			conf.Actions[id] = action*/
 		}(id, &wg)
 	}
 	wg.Wait()
@@ -324,8 +163,7 @@ func sendToClound(logfile string) {
 			}
 		}
 
-		//TODO rm read:2
-		out, err = cloud("ix.io", "'f:1;read:1=<-' http://ix.io")
+		out, err = cloud("ix.io", "'f:1=<-' http://ix.io")
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			out, err = cloud("sprunge", "'sprunge=<-' http://sprunge.us?md")
@@ -348,11 +186,11 @@ func sendToClound(logfile string) {
 }
 
 func main() {
-	configdir := Directory{}
-	configdir.Init()
+	var configDir Directory = Directory{}
+	configDir.Init(false)
 
 	args := os.Args[1:]
-	filename := configdir.Dir + "default." + EXTENSION
+	filename := configDir.Dir + "default." + EXTENSION
 	if len(args) > 0 {
 		if args[0][0] == '-' {
 			// command or option
@@ -362,8 +200,14 @@ func main() {
 			findCmd := flag.Bool("f", false, "Find/run command")
 			lrlistCmd := flag.Bool("lr", false, "List all command for Run")
 			rlistCmd := flag.Bool("r", false, "Run commands")
+			extractCmd := flag.Bool("e", false, "Extract yaml files")
 			flag.BoolVar(&verboseFlag, "v", false, "verbose")
 			flag.Parse()
+
+			if *extractCmd {
+				configDir.Init(true)
+				os.Exit(0)
+			}
 
 			if *helpCmd {
 
@@ -378,14 +222,16 @@ func main() {
 				fmt.Printf("\nSend this file to cloud : \"./%s -s\"\n", cmd)
 				os.Exit(0)
 			}
+
 			if *listCmd {
-				configdir.ForEach(func(conf *Service) {
+				configDir.ForEach(func(conf *Service) {
 					displayShort(conf)
 				}, "search")
 				os.Exit(0)
 			}
+
 			if *lrlistCmd {
-				configdir.ForEach(func(conf *Service) {
+				configDir.ForEach(func(conf *Service) {
 					s := conf.Command
 					for _, action := range conf.Actions {
 						c := strings.ReplaceAll(action.Name, " ", "_")
@@ -399,6 +245,7 @@ func main() {
 				fmt.Println("")
 				os.Exit(0)
 			}
+
 			if *rlistCmd {
 				// -r  "default:memory_(base_10)" pacman:arch
 
@@ -406,7 +253,7 @@ func main() {
 				args = flag.Args()
 
 				fmt.Println(args)
-				configdir.ForEach(func(conf *Service) {
+				configDir.ForEach(func(conf *Service) {
 					s := conf.Command
 					for _, action := range conf.Actions {
 						canr := fmt.Sprintf("%s:%s", s, strings.ReplaceAll(action.Name, " ", "_"))
@@ -425,6 +272,7 @@ func main() {
 				display(&results, true)
 				os.Exit(0)
 			}
+
 			if *findCmd {
 				if len(flag.Args()) < 1 {
 					os.Exit(127)
@@ -433,9 +281,10 @@ func main() {
 				if len(search) < 3 {
 					os.Exit(127)
 				}
-				searchCommand(search, &configdir)
+				searchCommand(search, &configDir)
 				os.Exit(0)
 			}
+
 			if *sendCmd {
 				sendToClound(LOGFILE)
 				os.Exit(0)
@@ -443,6 +292,8 @@ func main() {
 
 			args = flag.Args()
 		}
+
+		// format yaml path/filename
 		if len(args) > 0 && args[0][0] != '-' {
 			filename = args[0]
 			if !strings.HasSuffix(filename, "."+EXTENSION) {
@@ -453,14 +304,15 @@ func main() {
 				filename = pwd + "/" + filename
 			}
 			if !strings.HasPrefix(filename, "/") {
-				filename = configdir.Dir + "/" + filename
+				filename = configDir.Dir + "/" + filename
 			}
 		}
 	}
 
-	conf := loadConf(filename)
+	// run yaml file
 
-	if conf.WantSudo == 1 && os.Getuid() != 0 {
+	conf := configDir.LoadConf(filename)
+	if (conf.UseSudo()) && os.Getuid() != 0 {
 		fmt.Fprintf(os.Stderr, "%sError%s: Please start this script as root or sudo!\n", COLOR_RED, COLOR_NONE)
 		os.Exit(2)
 	}

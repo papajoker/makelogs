@@ -156,7 +156,7 @@ func (l LogsActivity) exec() (ret string) {
 			d := line[1:11]
 			t, _ := time.Parse("2006-01-02", d)
 			if t.After(now) {
-				if strings.Index(line, "[ALPM] ") == -1 {
+				if !strings.Contains(line, "[ALPM] ") {
 					continue
 				}
 				//run regex ...

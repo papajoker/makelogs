@@ -21,16 +21,26 @@ type Directory struct {
 	Dir string
 }
 
-func (d *Directory) Init() {
+func (d *Directory) Init(force bool) {
 	configdir, err := os.UserHomeDir()
 	if err != nil {
 		log.Fatal(err)
 	}
+	// TODO		use /tmp/makelogs ? or not extract is the best ;)
 	d.Dir = configdir + "/.local/share/makelogs/"
 
 	if _, err := os.Stat(d.Dir); errors.Is(err, fs.ErrNotExist) {
 		// extract resources only at first run ... ?
 		// TODO unsecure to have these scripts in home ... extract allways / use only embed files ? or use /var/
+		os.MkdirAll(d.Dir, os.ModePerm)
+		extractConf(d.Dir, fe)
+	}
+	if force {
+		err := os.RemoveAll(d.Dir)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(4)
+		}
 		os.MkdirAll(d.Dir, os.ModePerm)
 		extractConf(d.Dir, fe)
 	}
@@ -43,7 +53,7 @@ func (d Directory) ForEach(function func(conf *Service), exclude string) {
 		os.Exit(1)
 	}
 	for _, filename := range matches {
-		conf := loadConf(filename)
+		conf := d.LoadConf(filename)
 		if exclude != conf.Command {
 			function(conf)
 		}
@@ -73,7 +83,7 @@ func extractConf(configdir string, dir embed.FS) {
 	}
 }
 
-func loadConf(filename string) *Service {
+func (d Directory) LoadConf(filename string) *Service {
 	yfile, err := ioutil.ReadFile(filename)
 	if err != nil {
 		log.Fatal(err)
