@@ -27,6 +27,7 @@ const (
 	COLOR_GREEN = "\033[0;36m"
 	COLOR_RED   = "\033[38;5;124m"
 	COLOR_GRAY  = "\033[38;5;243m"
+	BEEP        = "\007"
 	LOGFILE     = "logs.md"
 	EXTENSION   = "yaml"
 )
@@ -43,6 +44,20 @@ func run(conf *Service) {
 	//fmt.Printf("%v", conf)
 	fmt.Println("--------")
 	fmt.Printf("%v%s%v \t %s \n\n", COLOR_BLUE, conf.Caption, COLOR_NONE, conf.Version)
+
+	// Ask before
+	for id := range conf.Actions {
+		ask := conf.Actions[id].Ask.GetText()
+		if ask != "" {
+			fmt.Printf("\n%v## %s%v\n", COLOR_GREEN, conf.Actions[id].Name, COLOR_NONE)
+			fmt.Printf("%v##%v%v %s%v ", COLOR_GREEN, COLOR_NONE, COLOR_BOLD, ask, COLOR_NONE)
+			ret := ""
+			fmt.Scanln(&ret)
+			if len(ret) > 0 && ret[0] != '.' {
+				conf.Actions[id].askreply = strings.TrimSpace(ret)
+			}
+		}
+	}
 
 	var wg sync.WaitGroup
 
@@ -65,7 +80,7 @@ func displayShort(conf *Service) {
 	fmt.Printf("%v%s%v \t%v%s%v \t%s%s%s", COLOR_GREEN, conf.Command, COLOR_NONE, COLOR_GRAY, conf.Caption, COLOR_NONE, COLOR_GRAY, conf.Version, COLOR_NONE)
 
 	for _, action := range conf.Actions {
-		fmt.Printf("\n\t%-35s %s%s%s ", action.Name, COLOR_GRAY, action.GetTitle(), COLOR_NONE)
+		fmt.Printf("\n\t%-35s %s%s%s ", action.Name, COLOR_GRAY, action.Titles.GetText(), COLOR_NONE)
 		//fmt.Println(action)
 	}
 	fmt.Println("")
@@ -101,7 +116,7 @@ func searchCommand(search string, configdir *Directory) {
 	r = strings.ReplaceAll(r, "+", ".*")
 	var validID = regexp.MustCompile(r)
 	configdir.ForEachAll(func(conf *Service, action *Action) {
-		strf := strings.ToLower(action.Name + " " + action.GetTitle() + " " + action.Command)
+		strf := strings.ToLower(action.Name + " " + action.Titles.GetText() + " " + action.Command)
 		if validID.MatchString(strf) {
 			i++
 			action.Id = i
@@ -109,7 +124,7 @@ func searchCommand(search string, configdir *Directory) {
 		}
 	})
 	for i, action := range results.Actions {
-		t := action.GetTitle()
+		t := action.Titles.GetText()
 		if t != "" {
 			t = "\n   " + t
 		}

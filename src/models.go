@@ -16,25 +16,31 @@ var (
 	LANG string = getUserLang()
 )
 
+type llang struct {
+	En string `yaml:"en"`
+	De string `yaml:"de"`
+	Fr string `yaml:"fr"`
+	It string `yaml:"it"`
+	Pt string `yaml:"pt"`
+	Sp string `yaml:"sp"`
+}
+
 // yaml Type gen by: https://zhwt.github.io/yaml-to-go/
+
 type Action struct {
-	Name    string `yaml:"name"`
-	Command string `yaml:"command"`
-	Object  string `yaml:"object"`
-	Type    string `yaml:"type"`
-	Level   int    `yaml:"level"`
-	Count   int    `yaml:"count"`
-	Regex   string `yaml:"regex"`
-	Titles  struct {
-		En string `yaml:"en"`
-		De string `yaml:"de"`
-		Fr string `yaml:"fr"`
-		It string `yaml:"it"`
-		Pt string `yaml:"pt"`
-		Sp string `yaml:"sp"`
-	} `yaml:"title"`
+	Name     string `yaml:"name"`
+	Command  string `yaml:"command"`
+	Object   string `yaml:"object"`
+	Type     string `yaml:"type"`
+	Level    int    `yaml:"level"`
+	Count    int    `yaml:"count"`
+	Regex    string `yaml:"regex"`
+	Titles   llang  `yaml:"title"`
+	Ask      llang  `yaml:"ask"`
+	askreply string
 	Requires []string `yaml:"require"`
 	Pkgs     string   `yaml:"pkgs"`
+	Test     string   `yaml:"test"`
 	Output   string
 	Id       int
 }
@@ -75,7 +81,7 @@ func (a Action) String() string {
 			ty = ""
 		}
 
-		title := a.GetTitle()
+		title := a.Titles.GetText()
 		if title != "" {
 			title = fmt.Sprintf("\t%-12s\t%s\n", "Title:", title)
 		} else {
@@ -107,16 +113,16 @@ func (a Action) String() string {
 		}
 		return fmt.Sprintf("\n::%v%s%v \n%s %s %s %s %s %s %s", COLOR_GREEN, a.Name, COLOR_NONE, title, ty, ob, req, pkgs, le, c)
 	} else {
-		return fmt.Sprintf("\n::%v%s%v \t%s\n", COLOR_GREEN, a.Name, COLOR_NONE, a.GetTitle())
+		return fmt.Sprintf("\n::%v%s%v \t%s\n", COLOR_GREEN, a.Name, COLOR_NONE, a.Titles.GetText())
 	}
 }
 
 // return title, "en" by default
-func (a Action) GetTitle() string {
-	ret := a.Titles.En
+func (l llang) GetText() string {
+	ret := l.En
 
 	langs := make(map[string]string)
-	v := reflect.ValueOf(a.Titles)
+	v := reflect.ValueOf(l)
 	for i := 0; i < v.NumField(); i++ {
 		langs[strings.ToUpper(v.Type().Field(i).Name)] = v.Field(i).Interface().(string)
 	}
@@ -133,6 +139,9 @@ func (a *Action) valid() error {
 	for _, req := range a.Requires {
 		if strings.HasPrefix(req, "bash:") {
 			req = req[5:]
+			if a.askreply != "" {
+				req = strings.ReplaceAll(req, "%ASK%", a.askreply)
+			}
 			if exec.Command("bash", "-c", req).Run() != nil {
 				return fmt.Errorf("bash condition false \"%s\"", req)
 			}
@@ -142,6 +151,9 @@ func (a *Action) valid() error {
 			}
 		} else {
 			req = strings.ToLower(req)
+			if a.askreply != "" {
+				req = strings.ReplaceAll(req, "%ASK%", a.askreply)
+			}
 			if exec.Command("bash", "-c", fmt.Sprintf("LANG=C pacman -Qi %s", req)).Run() != nil {
 				return fmt.Errorf("package not found \"%s\"", req)
 			}
@@ -161,9 +173,25 @@ func (a *Action) exec() bool {
 		return false
 	}
 
+	vari := ""
+	//get value to include in command
+	if a.Test != "" {
+		s, _ := exec.Command("bash", "-c", "LANG=C "+a.Test).Output()
+		vari = strings.TrimSpace(string(s))
+	}
+
+	// get value, prompt a question to user
+	if a.askreply != "" {
+		vari = a.askreply
+	}
+
 	// shell command
 	if a.Command != "" {
-		out, err := exec.Command("bash", "-c", "LANG=C "+a.Command+"|cat").Output()
+		cmd := a.Command
+		if vari != "" {
+			cmd = strings.ReplaceAll(cmd, "%ASK%", vari)
+		}
+		out, err := exec.Command("bash", "-c", "LANG=C "+cmd+"|cat").Output()
 		if err != nil {
 			return false
 		}
