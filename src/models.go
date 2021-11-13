@@ -6,7 +6,9 @@ import (
 	"io/fs"
 	"os"
 	"os/exec"
+	"os/user"
 	"reflect"
+	"regexp"
 	"strings"
 
 	"github.com/acarl005/stripansi"
@@ -165,6 +167,7 @@ func (a *Action) valid() error {
 // run command
 func (a *Action) exec() bool {
 	a.Output = ""
+	defer a.filter()
 
 	// exit if Required not ok
 	err := a.valid()
@@ -215,6 +218,42 @@ func (a *Action) exec() bool {
 		}
 	}
 	return false
+}
+
+func (a *Action) filter() {
+	if a.Output == "" {
+		return
+	}
+
+	ipv6_regex := `[0-9A-Fa-f]{1,4}:[0-9A-Fa-f]{1,4}:[0-9A-Fa-f]{1,4}:`
+	ipv4_regex := `\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}`
+	mac_regex := `[a-fA-F0-9:]{17}|[a-fA-F0-9]{12}`
+
+	re := regexp.MustCompile(ipv4_regex)
+	//a.Output = re.ReplaceAllString(a.Output, "[**ipv4**]")
+	submatchall := re.FindAllString(a.Output, -1)
+	for _, element := range submatchall {
+		fmt.Println(element)
+		if strings.HasPrefix(element, "192.168") ||
+			strings.HasPrefix(element, "255") ||
+			strings.HasPrefix(element, "0.") ||
+			strings.HasPrefix(element, "10.") {
+			continue
+		}
+		a.Output = strings.ReplaceAll(a.Output, element, "[**ipv4**]")
+	}
+
+	re = regexp.MustCompile(mac_regex)
+	a.Output = re.ReplaceAllString(a.Output, "[**filter**]") // mac and ipv6
+
+	re = regexp.MustCompile(ipv6_regex)
+	// can exclude fc00... and fe80...
+	a.Output = re.ReplaceAllString(a.Output, "[**ipv6**]")
+
+	me, err := user.Current()
+	if err == nil {
+		a.Output = strings.ReplaceAll(a.Output, me.Username, "[**$USER**]")
+	}
 }
 
 func getUserLang() string {
