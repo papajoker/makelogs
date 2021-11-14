@@ -12,8 +12,8 @@ actions:
     title:
       en: "one command only for search function"
 
-  - name: "process by Memory"
-    command: top -b -n 1 -o "+%MEM" | head -22
+  - name: "process by Memory"    #  RES  column
+    command: top -b -n 1 -o "+%MEM" -e m | head -22
 
   - name: "process by cpu"
-    command: top -b -n 1 -o "+%CPU" | head -22
+    command: top -b -n 1 -o "+%CPU" -e m| head -22
