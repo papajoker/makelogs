@@ -113,9 +113,9 @@ func (a Action) String() string {
 		} else {
 			ob = fmt.Sprintf("\t%-12s\t%v\n", "Command:", a.Command)
 		}
-		return fmt.Sprintf("\n::%v%s%v \n%s %s %s %s %s %s %s", COLOR_GREEN, a.Name, COLOR_NONE, title, ty, ob, req, pkgs, le, c)
+		return fmt.Sprintf("\n::%s \n%s %s %s %s %s %s %s", Primary(a.Name), title, ty, ob, req, pkgs, le, c)
 	} else {
-		return fmt.Sprintf("\n::%v%s%v \t%s\n", COLOR_GREEN, a.Name, COLOR_NONE, a.Titles.GetText())
+		return fmt.Sprintf("\n::%s \t%s\n", Primary(a.Name), a.Titles.GetText())
 	}
 }
 
@@ -172,7 +172,7 @@ func (a *Action) exec() bool {
 	// exit if Required not ok
 	err := a.valid()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%sWarning%s: %s\n", COLOR_BOLD, COLOR_NONE, err)
+		fmt.Fprintf(os.Stderr, "%s: %s\n", Hilite("Warning"), err)
 		return false
 	}
 
@@ -209,7 +209,7 @@ func (a *Action) exec() bool {
 			obj.init(a)
 			out := obj.exec()
 			if out != "" {
-				a.Output = stripansi.Strip(out)
+				a.Output = stripansi.Strip(out) // remove colors screen and log
 				return true
 			}
 		} else {

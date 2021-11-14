@@ -20,17 +20,46 @@ import (
 )
 
 const (
-	//https://misc.flogisoft.com/bash/tip_colors_and_formatting
-	COLOR_NONE  = "\033[0m"
-	COLOR_BOLD  = "\033[1m"
-	COLOR_BLUE  = "\033[0;34m"
-	COLOR_GREEN = "\033[0;36m"
-	COLOR_RED   = "\033[38;5;124m"
-	COLOR_GRAY  = "\033[38;5;243m"
-	BEEP        = "\007"
-	LOGFILE     = "logs.md"
-	EXTENSION   = "yaml"
+	LOGFILE   = "logs.md"
+	EXTENSION = "yaml"
 )
+
+var (
+	Primary   = green // color green
+	Secondary = blue  // color blue
+	Warning   = red   // color red
+	Danger    = red   // color red
+	Info      = gray  // color gray
+	Hilite    = bold  // bold
+)
+
+var (
+	red   = Color("\033[1;31m")
+	blue  = Color("\033[1;34m")
+	green = Color("\033[1;36m")
+	bold  = Color("\033[1;1m")
+	gray  = Color("\033[38;5;243m")
+	//black   = Color("\033[1;30m")
+	//yellow  = Color("\033[1;33m")
+	//magenta = Color("\033[1;35m")
+	//white   = Color("\033[1;37m")
+
+)
+
+func Color(colorCode string) func(...interface{}) string {
+	sprint := func(args ...interface{}) string {
+		if len(args) == 1 {
+			return fmt.Sprintf(colorCode+"%s\033[0m", args[0])
+		} else {
+			parts := make([]string, len(args))
+			for i := 0; i < len(args); i++ {
+				parts = append(parts, fmt.Sprintf("%v", args[i]))
+			}
+			return fmt.Sprintf(colorCode+"%s\033[0m", strings.Join(parts, " "))
+		}
+	}
+	return sprint
+}
 
 var (
 	GitBranch string
@@ -43,14 +72,14 @@ var verboseFlag bool = false
 func run(conf *Service) {
 	//fmt.Printf("%v", conf)
 	fmt.Println("--------")
-	fmt.Printf("%v%s%v \t %s \n\n", COLOR_BLUE, conf.Caption, COLOR_NONE, conf.Version)
+	fmt.Printf("%s \t %s \n\n", Secondary(conf.Caption), conf.Version)
 
 	// Ask before
 	for id := range conf.Actions {
 		ask := conf.Actions[id].Ask.GetText()
 		if ask != "" {
-			fmt.Printf("\n%v## %s%v\n", COLOR_GREEN, conf.Actions[id].Name, COLOR_NONE)
-			fmt.Printf("%v##%v%v %s%v ", COLOR_GREEN, COLOR_NONE, COLOR_BOLD, ask, COLOR_NONE)
+			fmt.Printf("\n%s\n", Primary("##", conf.Actions[id].Name))
+			fmt.Printf("%s %s ", Primary("##"), Hilite(ask))
 			ret := ""
 			fmt.Scanln(&ret)
 			if len(ret) > 0 && ret[0] != '.' {
@@ -66,22 +95,17 @@ func run(conf *Service) {
 		go func(id int, wg *sync.WaitGroup) { // can add go for goroutine ?
 			defer wg.Done()
 			conf.Actions[id].exec()
-			/*action := conf.Actions[id]
-			action.exec()
-			conf.Actions[id] = action*/
 		}(id, &wg)
 	}
 	wg.Wait()
 }
 
 func displayShort(conf *Service) {
-	//fmt.Printf("%v", conf)
 	fmt.Println(" ")
-	fmt.Printf("%v%s%v \t%v%s%v \t%s%s%s", COLOR_GREEN, conf.Command, COLOR_NONE, COLOR_GRAY, conf.Caption, COLOR_NONE, COLOR_GRAY, conf.Version, COLOR_NONE)
+	fmt.Printf("%s \t%s \t%s", Primary(conf.Command), Info(conf.Caption), Info(conf.Version))
 
 	for _, action := range conf.Actions {
-		fmt.Printf("\n\t%-35s %s%s%s ", action.Name, COLOR_GRAY, action.Titles.GetText(), COLOR_NONE)
-		//fmt.Println(action)
+		fmt.Printf("\n\t%-35s %s ", action.Name, Info(action.Titles.GetText()))
 	}
 	fmt.Println("")
 }
@@ -96,19 +120,19 @@ func display(conf *Service, verbose bool) {
 
 	for _, action := range conf.Actions {
 		if action.Output != "" {
-			fmt.Printf("%s\n%v\n", action, action.Output)
+			fmt.Printf("%s\n%s\n", action, action.Output)
 			fmt.Fprintf(f, "\n:: %s\n```\n%v```\n", action.Name, stripansi.Strip(action.Output))
 		} else {
 			if verbose {
-				fmt.Fprintf(os.Stderr, "%sWarning%s: Nothing for %s\n", COLOR_RED, COLOR_NONE, action.Name)
+				fmt.Fprintf(os.Stderr, "%s: Nothing for %s\n", Warning("Warning"), action.Name)
 			}
 		}
 	}
-	fmt.Printf("\nOutput file : %v%s%v\n", COLOR_GREEN, LOGFILE, COLOR_NONE)
+	fmt.Printf("\nOutput file : %s\n", Primary(LOGFILE))
 }
 
 func searchCommand(search string, configdir *Directory) {
-	fmt.Printf("Search: \"%v%s%v\"\n", COLOR_BLUE, search, COLOR_NONE)
+	fmt.Printf("Search: \"%s\"\n", Secondary(search))
 	verboseFlag = true
 	results := Service{Caption: search}
 	i := 0
@@ -128,7 +152,7 @@ func searchCommand(search string, configdir *Directory) {
 		if t != "" {
 			t = "\n   " + t
 		}
-		fmt.Printf("\n%-3d:: %v%s%v%s\n   %s\n", i+1, COLOR_GREEN, action.Name, COLOR_NONE, t, action.Command)
+		fmt.Printf("\n%-3d:: %s%s\n   %s\n", i+1, Primary(action.Name), t, action.Command)
 	}
 	fmt.Println("")
 	if len(results.Actions) > 0 {
@@ -152,7 +176,7 @@ func searchCommand(search string, configdir *Directory) {
 
 func sendToClound(logfile string) {
 	if _, err := os.Stat(logfile); errors.Is(err, fs.ErrNotExist) {
-		fmt.Fprintf(os.Stderr, "%sError%s: file not found \"%s\"\n", COLOR_RED, COLOR_NONE, logfile)
+		fmt.Fprintf(os.Stderr, "%s: file not found \"%s\"\n", Danger("Error"), logfile)
 		os.Exit(1)
 	}
 	fmt.Printf("! Read log \"%s\" before send this file on web\n", logfile)
@@ -173,7 +197,7 @@ func sendToClound(logfile string) {
 			if e != nil {
 				return "", fmt.Errorf("error %s : %s - %s", name, string(o), e)
 			} else {
-				fmt.Printf("\n:: cloud url is : %v%s%v\n", COLOR_GREEN, string(o), COLOR_NONE)
+				fmt.Printf("\n:: cloud Url is : %s\n", Primary(string(o)))
 				return string(o), nil
 			}
 		}
@@ -192,7 +216,7 @@ func sendToClound(logfile string) {
 			f, err := os.OpenFile(logfile, os.O_APPEND|os.O_WRONLY, 0644)
 			if err == nil {
 				defer f.Close()
-				fmt.Fprintf(f, "\n-----\n\nUrl : %s\n", out)
+				fmt.Fprintf(f, "\n-----\n\n %s\n", out)
 			}
 		}
 
@@ -227,14 +251,14 @@ func main() {
 			if *helpCmd {
 
 				cmd := filepath.Base(os.Args[0])
-				fmt.Printf("\n%v%s%v Version: %v-%v %v %v\n\n", COLOR_GREEN, cmd, COLOR_NONE, Version, GitID, GitBranch, BuildDate)
+				fmt.Printf("\n%s Version: %v-%v %v %v\n\n", Primary(cmd), Version, GitID, GitBranch, BuildDate)
 
 				fmt.Println("run -l for list all config available as:")
 				fmt.Printf("   ./%s    # load default\n", cmd)
 				fmt.Printf("   ./%s wifi\n", cmd)
 				fmt.Printf("   ./%s disk\n", cmd)
-				fmt.Println("\nREAD/Edit result file:", LOGFILE)
-				fmt.Printf("\nSend this file to cloud : \"./%s -s\"\n", cmd)
+				fmt.Println("\nREAD/Edit result file:", Hilite(LOGFILE))
+				fmt.Printf("\nSend this file to cloud : \"./%s -s\"\n", Hilite(cmd))
 				os.Exit(0)
 			}
 
@@ -250,11 +274,11 @@ func main() {
 					s := conf.Command
 					for _, action := range conf.Actions {
 						c := strings.ReplaceAll(action.Name, " ", "_")
-						ret := fmt.Sprintf("%v%s%v:%s", COLOR_GREEN, s, COLOR_NONE, c)
+						ret := fmt.Sprintf("%s:%s", Primary(s), c)
 						if strings.Index(c, "(") > 0 || strings.Index(c, "?") > 0 {
 							ret = fmt.Sprintf("'%s'", ret)
 						}
-						fmt.Printf("\n%s", ret)
+						fmt.Printf("\n %s", ret)
 					}
 				}, "*")
 				fmt.Println("")
@@ -328,7 +352,7 @@ func main() {
 
 	conf := configDir.LoadConf(filename)
 	if (conf.UseSudo()) && os.Getuid() != 0 {
-		fmt.Fprintf(os.Stderr, "%sError%s: Please start this script as root or sudo!\n", COLOR_RED, COLOR_NONE)
+		fmt.Fprintf(os.Stderr, "%s: Please start this script as root or sudo!\n", Danger("Error"))
 		os.Exit(2)
 	}
 

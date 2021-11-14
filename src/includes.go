@@ -148,6 +148,7 @@ func (l LogsActivity) exec() (ret string) {
 	defer file.Close()
 
 	calendar := make(map[string]int)
+	maxi := 0
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
@@ -163,6 +164,9 @@ func (l LogsActivity) exec() (ret string) {
 				if l.regex.MatchString(line) {
 					if _, ok := calendar[d]; ok {
 						calendar[d] += 1
+						if calendar[d] > maxi {
+							maxi = calendar[d]
+						}
 					} else {
 						calendar[d] = 1
 					}
@@ -170,14 +174,7 @@ func (l LogsActivity) exec() (ret string) {
 			}
 		}
 	}
-	max := func() (max int) {
-		for _, v := range calendar {
-			if v > max {
-				max = v
-			}
-		}
-		return max
-	}()
+
 	sortc := func(map[string]int) []string {
 		keys := make([]string, len(calendar))
 		i := 0
@@ -188,10 +185,11 @@ func (l LogsActivity) exec() (ret string) {
 		sort.Strings(keys)
 		return keys
 	}
-	for _, i := range sortc(calendar) {
-		c := calendar[i]
-		pourcent := int(math.Round((float64(c) * float64(100)) / float64(max)))
-		ret += fmt.Sprintf("%s %v%-3v%v %s\n", i, COLOR_GREEN, c, COLOR_NONE, strings.Repeat("━", pourcent))
+	for _, d := range sortc(calendar) {
+		c := calendar[d]
+		pourcent := int((math.Round((float64(c) * float64(100)) / float64(maxi))) / 1.4)
+		n := Primary(fmt.Sprintf("%3d", c))
+		ret += fmt.Sprintf("%s %s %s\n", d, n, strings.Repeat("━", pourcent))
 	}
 	return ret
 }
